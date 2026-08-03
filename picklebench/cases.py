@@ -255,6 +255,37 @@ MALICIOUS: tuple[Case, ...] = (
         ),
     ),
     Case(
+        id="dup-amplification-billion-laughs",
+        filename="dup_amplification.pkl",
+        malicious=True,
+        technique="DUP pushes a second reference to the same object, so "
+                  "`DUP TUPLE2` costs two bytes and doubles the node count a "
+                  "tree-shaped traversal would walk. Repeated, it is a "
+                  "billion-laughs bomb aimed at the scanner rather than the "
+                  "loader.",
+        origin="published-technique",
+        reference="Shipped as billionLaughs.pt with ColdwaterQ's DEFCON 30 "
+                  "talk 'Backdooring Pickles: A decade only made things "
+                  "worse' (github.com/coldwaterq/pickle_injector).",
+        notes="Scores resistance to scanner-directed resource exhaustion, "
+              "which is a detection property and not merely a performance "
+              "one: a scan that stalls or gets OOM-killed reports nothing. "
+              "The payload also carries a real os.system, so a scanner that "
+              "survives the amplification should still flag the file. "
+              "Amplification is kept modest (2^24 logical nodes from ~70 "
+              "bytes) so a vulnerable scanner degrades visibly instead of "
+              "hanging the whole run.",
+        tags=("resource-exhaustion", "scanner-dos"),
+        build=lambda: (
+            b"\x80\x04"
+            + _su("os") + _su("system") + b"\x93"
+            + _su(f"echo {MARKER}") + b"\x85"
+            + (b"2" + b"\x86") * 24      # DUP + TUPLE2, 24 rounds
+            + b"\x85"
+            + b"R."
+        ),
+    ),
+    Case(
         id="legacy-layout-second-pickle",
         filename="legacy_layout.pt",
         malicious=True,
