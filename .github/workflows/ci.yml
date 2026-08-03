@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Pinned to 3.12 deliberately: modelscan requires <3.13, so a newer
+      # default would silently drop it from the matrix and quietly reduce a
+      # four-way benchmark to a three-way one.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install picklebench
+        run: pip install -e ".[dev]"
+
+      # Installed here rather than declared as dependencies: adapters shell out
+      # to these, and resolving four scanners' pinned transitive dependencies
+      # in one environment is exactly what the subprocess design avoids.
+      - name: Install scanners under test
+        run: pip install picklescan modelscan fickling
+
+      - name: Fetch real benign models
+        run: python -m picklebench.realmodels
+
+      # The load-bearing job. Every adapter is checked against a file its
+      # scanner certainly flags and one it certainly does not, because the
+      # characteristic failure here is not a crash but a plausible number:
+      # an adapter that silently reads nothing reports a confident zero and
+      # looks exactly like a scanner that detects nothing.
+      - name: Adapter sanity
+        run: pytest tests/test_adapters.py -v
+
+      - name: Corpus integrity
+        run: pytest tests/test_corpus.py -v
+
+      # Runs the benchmark itself so a change that breaks the harness fails
+      # here rather than the next time someone quotes a number from it.
+      - name: Benchmark smoke run
+        run: python -m picklebench.run --json results.json
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: benchmark-results
+          path: results.json

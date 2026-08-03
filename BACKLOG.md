@@ -58,7 +58,7 @@ Note Python 3.13+ cannot run this benchmark: `modelscan` caps at `<3.13`.
   the corpus generates payloads rather than shipping them, so the usual
   "malware sample repository" licensing questions do not apply, but the choice
   still interacts with Hedgerow's closed-source direction for Rowan.
-* **No remote.** Four commits, local only.
+* **No remote.** Local only.
 * **No CI.** `tests/test_adapters.py` is the file that catches the failure mode
   this project is most prone to (an adapter that silently reads nothing and
   reports a confident zero), and it only runs when someone remembers.
@@ -85,8 +85,8 @@ Note Python 3.13+ cannot run this benchmark: `modelscan` caps at `<3.13`.
 
 * **Severity is still not scored, only flagged/not-flagged.** Now the most
   important open item, because the four-way run made the cost visible.
-  fickling's 75% false-positive rate is not really comparable to picklescan's
-  25%: it grades on four levels, treats anything above `LIKELY_SAFE` as unsafe,
+  fickling's 58% false-positive rate is not really comparable to picklescan's
+  8%: it grades on four levels, treats anything above `LIKELY_SAFE` as unsafe,
   and is built to be read by a human rather than to gate a pipeline. Reducing
   that to one bit flatters gate-shaped tools and penalises analysis-shaped
   ones. `--verbose` is the current escape hatch (raw verdicts, unnormalized)
@@ -101,17 +101,9 @@ Note Python 3.13+ cannot run this benchmark: `modelscan` caps at `<3.13`.
   across ten scanners via the Pickle VM's external module import mechanism. If
   that number is reproducible it is the most important thing missing from this
   corpus, and if it is not reproducible that is worth publishing too.
-* **No case scores severity, only flagged/not-flagged.** Deliberate for now,
-  since severity vocabularies do not map across tools and forcing them into one
-  scale is where benchmarks start lying. But it means a scanner reporting
-  everything at INFO scores identically to one reporting CRITICAL, which is the
-  exact failure this whole line of work started from.
 
 ## Harness
 
-* **`ScanOutcome.errored` is collected and never surfaced.** The runner counts
-  errors per scanner but the report does not print them, so a scanner erroring
-  on every case looks the same as one flagging nothing.
 * **No overall run timeout.** `TIMEOUT_SECONDS = 120` is per subprocess with no
   overall bound. The `dup-amplification-billion-laughs` case is deliberately
   tuned to degrade visibly rather than hang, but a future resource-exhaustion
@@ -129,6 +121,10 @@ produced confident wrong numbers rather than errors:
    the harness printed `0/9 (0%)` for a scanner detecting 9 of 9.
 2. An editable install pointed at a different checkout than the one under test,
    so the first "real" run scored the wrong build entirely.
+3. Two adapters were written against CLIs that had never been run: one matched
+   output text a tool never prints (scored it 0 on everything), the other
+   matched a substring present in every clean report (scored every benign file
+   as malicious).
 
-Neither crashed. Check which build you are measuring, and run
+None of them crashed. Check which build you are measuring, and run
 `tests/test_adapters.py` before believing any number.
