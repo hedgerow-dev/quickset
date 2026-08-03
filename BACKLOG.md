@@ -1,9 +1,35 @@
 # Backlog
 
-Status as of 2026-08-03: the harness works and produces a real head-to-head,
-but only two of four adapters have ever been run, and the corpus is small and
-disproportionately authored by one person against one scanner. Both of those
-are credibility problems before they are engineering problems.
+Status as of 2026-08-03: all four adapters now run against live installs and
+the head-to-head is real. The remaining weakness is the corpus: small, and
+disproportionately authored by one person against one scanner. That is a
+credibility problem before it is an engineering problem, so it leads.
+
+### Done (2026-08-03)
+
+Running `modelscan` and `fickling` for the first time immediately found two
+adapter bugs, both of the "confident wrong number" kind this project exists to
+avoid, and both caught by `tests/test_adapters.py` before any figure was
+published:
+
+* The `modelscan` adapter reported **every benign file as malicious**. Its JSON
+  fallback matched the substring `"critical"`, which appears as `"CRITICAL": 0`
+  in every clean report. The underlying cause was that `json.loads` failed at
+  all: modelscan prints a human preamble before the report *and* its console
+  renderer hard-wraps JSON at the terminal width, mid string-literal, producing
+  genuinely invalid JSON. Now read via `-o <file>`, and the text fallback is
+  deleted rather than repaired — an unparseable report is an adapter failure,
+  not a detection result, and must never be scored as either.
+* The `fickling` adapter scored **0 on everything**. `--check-safety` prints
+  nothing at all on either verdict and signals only through its exit code; the
+  adapter was matching output text that never exists. Now reads
+  `--json-output`, which also exposes the four-level severity.
+
+Also landed: `errors` is surfaced in the summary (previously counted and never
+printed, so a scanner erroring on every case looked identical to one flagging
+nothing), and `--verbose` prints each scanner's own verdict string per case.
+
+Note Python 3.13+ cannot run this benchmark: `modelscan` caps at `<3.13`.
 
 ## Blocking publication
 
@@ -39,11 +65,16 @@ are credibility problems before they are engineering problems.
 
 ## Coverage
 
-* **Two adapters have never been run.** `modelscan` (Apache-2.0) and `fickling`
-  (LGPL-3.0, keep as a subprocess, do not link) are implemented and untested
-  against a live install. Until they run, their columns are unpopulated and
-  `test_adapters.py` skips them, which means an adapter bug in either would sit
-  undetected. Highest-value item here.
+* **Severity is still not scored, only flagged/not-flagged.** Now the most
+  important open item, because the four-way run made the cost visible.
+  fickling's 75% false-positive rate is not really comparable to picklescan's
+  25%: it grades on four levels, treats anything above `LIKELY_SAFE` as unsafe,
+  and is built to be read by a human rather than to gate a pipeline. Reducing
+  that to one bit flatters gate-shaped tools and penalises analysis-shaped
+  ones. `--verbose` is the current escape hatch (raw verdicts, unnormalized)
+  but the summary table still implies a comparison it cannot support. Any fix
+  must avoid inventing a cross-tool severity scale, which is the thing that
+  would make this benchmark start lying.
 * **Pickle-only.** Nothing covers Keras Lambda layers, ONNX custom operators, or
   GGUF chat-template injection, all of which are model-file code execution and
   all of which Rowan already scans. ColdwaterQ's DEFCON 30 deck points at a

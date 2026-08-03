@@ -13,24 +13,21 @@ python -m picklebench.run
 ```
 
 ```
-case                           truth   picklescan   open-rowan
----------------------------------------------------------------
-direct-os-system               MAL     o            o
-cve-2025-71350-collect-env     MAL     o            o
-cve-2025-1716-pip-main         MAL     o            o
-cve-2025-46417-linecache-read  MAL     MISS         o
-cve-2025-46417-ssl-exfil       MAL     o            o
-attrgetter-chain               MAL     o            o
-getattr-chain                  MAL     o            o
-legacy-layout-second-pickle    MAL     o            o
-bin-extension-dispatch         MAL     o            o
-benign-state-dict              ben     .            .
-benign-stdlib-types            ben     FP           .
-benign-custom-class            ben     .            .
-benign-paths-and-urls          ben     .            .
+scanner        detection        false positives    errors
+--------------------------------------------------------------
+picklescan     12/13 (92%)      1/4 (25%)          -
+modelscan       5/13 (38%)      0/4 (0%)           -
+fickling       12/13 (92%)      3/4 (75%)          1
+open-rowan     13/13 (100%)     0/4 (0%)           -
 ```
 
-Scanners are invoked through their command-line interfaces as subprocesses, never imported. A scanner that is not installed is skipped, not failed.
+Run `--verbose` for each scanner's own verdict string per case, unnormalized.
+
+Scanners are invoked through their command-line interfaces as subprocesses, never imported, and scored at their own shipped defaults. A scanner that is not installed is skipped, not failed.
+
+**Read those columns carefully, because they are not measuring the same thing.** fickling grades on four severity levels and treats anything above `LIKELY_SAFE` as unsafe; it is built to be read by a human, not to gate a pipeline. Its false-positive column reflects that design goal, not a defect — it rates `OrderedDict.update(...)` as "can execute arbitrary code", which is *true* and also not what a CI gate wants. modelscan's low detection is the opposite trade: it is the most conservative of the four and missed every gadget that is not on its operator list, including cloudpickle (verified: 0 issues, 0 errors, not an adapter artifact).
+
+Two results worth singling out because they are about the tools, not the corpus. picklescan and fickling **both** rate an ordinary pickled `uuid.UUID` as dangerous, from independent causes (a `uuid: *` module wildcard, and an "overtly malicious" import rule). And fickling **crashes** on the `EXT1` opcode in `stack-desync-ext1-pop` — counted here as an error, not a detection, which is exactly the distinction the `errors` column exists to preserve. ColdwaterQ flagged this class in the DEFCON 30 talk: "Bugs prevent loading every pickle."
 
 ## Design decisions
 

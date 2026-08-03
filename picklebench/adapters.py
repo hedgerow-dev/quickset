@@ -90,21 +90,44 @@ class ModelscanAdapter(Adapter):
         object.__setattr__(self, "executable", "modelscan")
 
     def scan(self, path: Path) -> ScanOutcome:
-        proc = self._run(self.executable, "-p", str(path), "-r", "json")
-        raw = proc.stdout.strip()
-        # modelscan prints a JSON report to stdout with -r json; fall back to
-        # text matching if the format shifts rather than silently scoring zero.
-        try:
-            report = json.loads(raw)
-        except (json.JSONDecodeError, ValueError):
-            text = raw + proc.stderr
-            return ScanOutcome(
-                flagged="issues found" in text.lower() or "critical" in text.lower(),
-                detail=_first_signal(text, "issue"),
-                errored=not text,
-            )
-        issues = report.get("summary", {}).get("total_issues", 0)
-        return ScanOutcome(flagged=bool(issues), detail=f"{issues} issue(s)")
+        # Two reasons this goes through -o rather than reading stdout:
+        # modelscan writes a human preamble ("No settings file detected...",
+        # "Scanning <path> using <scanner>...") ahead of the report, and its
+        # console renderer hard-wraps the JSON at the terminal width -- mid
+        # string-literal, which produces genuinely invalid JSON. Slicing from
+        # the first brace is not enough to survive that; `COLUMNS=100000`
+        # happens to avoid it but relies on an env var the tool never promised
+        # to honour.
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "report.json"
+            self._run(self.executable, "-p", str(path), "-r", "json", "-o", str(out))
+            report = None
+            if out.exists():
+                try:
+                    report = json.loads(out.read_text(encoding="utf-8"))
+                except (json.JSONDecodeError, ValueError, OSError):
+                    report = None
+
+        if report is None:
+            # Deliberately no text-matching fallback. The previous one looked
+            # for "critical" in the output, which matches the string
+            # `"CRITICAL": 0` present in every clean report -- it reported
+            # every benign file as malicious. A scanner whose output cannot be
+            # parsed is an adapter failure, not a detection result, and must
+            # never be scored as either.
+            return ScanOutcome(flagged=False, detail="unparseable report", errored=True)
+
+        summary = report.get("summary", {})
+        issues = summary.get("total_issues", 0)
+        by_severity = summary.get("total_issues_by_severity", {})
+        worst = next(
+            (s for s in ("CRITICAL", "HIGH", "MEDIUM", "LOW") if by_severity.get(s)),
+            "",
+        )
+        return ScanOutcome(
+            flagged=bool(issues),
+            detail=f"{issues} issue(s){f', worst {worst}' if worst else ''}",
+        )
 
 
 class FicklingAdapter(Adapter):
@@ -115,11 +138,40 @@ class FicklingAdapter(Adapter):
         object.__setattr__(self, "executable", "fickling")
 
     def scan(self, path: Path) -> ScanOutcome:
-        proc = self._run(self.executable, "--check-safety", str(path))
-        text = (proc.stdout + proc.stderr).strip()
-        lowered = text.lower()
-        likely_safe = "likely safe" in lowered or "no overtly malicious" in lowered
-        return ScanOutcome(flagged=not likely_safe and bool(text), detail=_first_line(text))
+        # `--check-safety` prints nothing at all on either verdict and signals
+        # only through the exit code (1 = not likely safe, 0 = likely safe).
+        # The first version of this adapter matched on output text that never
+        # exists, so fickling scored 0 on everything.
+        #
+        # `--json-output` carries the actual severity, which is worth having:
+        # fickling grades on four levels and the pass/fail bit alone hides
+        # that a "LIKELY_UNSAFE" verdict on an ordinary `OrderedDict.update`
+        # is a different claim from "LIKELY_OVERTLY_MALICIOUS" on os.system.
+        # The flag threshold still matches fickling's own CLI contract --
+        # anything above LIKELY_SAFE -- because the stated rule for these
+        # adapters is to score the shipped tool at its shipped defaults, not
+        # at a threshold picked here to flatter anyone.
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "fickling.json"
+            proc = self._run(
+                self.executable, "--check-safety", "--json-output", str(out), str(path)
+            )
+            severity = ""
+            if out.exists():
+                try:
+                    severity = str(json.loads(out.read_text(encoding="utf-8")).get("severity", ""))
+                except (json.JSONDecodeError, ValueError, OSError):
+                    severity = ""
+
+        stderr = proc.stderr.strip()
+        if not severity and stderr and ("Traceback" in stderr or "Error" in stderr):
+            # A crash also exits non-zero, and counting that as a detection
+            # would silently inflate the score.
+            return ScanOutcome(flagged=False, detail=_first_line(stderr), errored=True)
+
+        if severity:
+            return ScanOutcome(flagged=severity != "LIKELY_SAFE", detail=severity)
+        return ScanOutcome(flagged=proc.returncode != 0, detail=f"exit {proc.returncode}")
 
 
 class OpenRowanAdapter(Adapter):

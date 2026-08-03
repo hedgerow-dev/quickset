@@ -72,6 +72,28 @@ def run(corpus_dir: Path) -> tuple[list[Score], dict]:
     return scores, per_case
 
 
+def _print_verdicts(per_case: dict, names: list[str]) -> None:
+    """Each scanner's own verdict string per case.
+
+    Severity vocabularies do not map onto each other, so the matrix reduces
+    everything to flagged/not-flagged. That reduction is where a benchmark
+    starts hiding things, and this is the escape hatch: the raw verdict, in
+    each tool's own words, with nothing normalized.
+    """
+    print()
+    print("VERDICTS (each scanner's own words, unnormalized)")
+    for case in case_module.ALL_CASES:
+        print()
+        print(f"  {case.id}  [{'malicious' if case.malicious else 'benign'}]")
+        for name in names:
+            got = per_case.get(case.id, {}).get(name, {})
+            mark = "flag" if got.get("flagged") else "  . "
+            note = got.get("detail") or ""
+            if got.get("errored"):
+                note = f"ERROR: {note}"
+            print(f"      {mark}  {name:12} {note[:80]}")
+
+
 def _print_report(scores: list[Score], per_case: dict, adapters: list[Adapter]) -> None:
     names = [s.scanner for s in scores]
     width = max([len(c.id) for c in case_module.ALL_CASES] + [12])
@@ -102,18 +124,28 @@ def _print_report(scores: list[Score], per_case: dict, adapters: list[Adapter]) 
     print()
     print("SUMMARY")
     print()
-    print("scanner".ljust(14), "detection".ljust(16), "false positives")
-    print("-" * 52)
+    print("scanner".ljust(14), "detection".ljust(16), "false positives".ljust(18), "errors")
+    print("-" * 62)
     for score in scores:
         det = f"{score.detected}/{score.total_malicious} ({score.recall:.0%})"
         fps = f"{score.false_positives}/{score.total_benign} ({score.fp_rate:.0%})"
-        print(score.scanner.ljust(14), det.ljust(16), fps)
+        # Errors were previously counted and never printed, so a scanner
+        # erroring on every case looked identical to one flagging nothing.
+        err = str(score.errors) if score.errors else "-"
+        print(score.scanner.ljust(14), det.ljust(16), fps.ljust(18), err)
 
     print()
     print("Detection and false positives are reported separately and never")
     print("combined into a single score. A scanner that flags every file has")
     print("perfect detection, and one that flags nothing has a perfect false")
     print("positive rate; only the pair means anything.")
+    print()
+    print("Scanners are scored at their own shipped defaults, which are not")
+    print("the same threshold. fickling in particular grades on four levels")
+    print("and treats anything above LIKELY_SAFE as unsafe -- it is built to")
+    print("be read by a human, not to gate a pipeline, so its false-positive")
+    print("column is measuring a different design goal. Run with --verbose")
+    print("to see each scanner's own verdict string per case.")
     print()
 
 
@@ -125,6 +157,10 @@ def main() -> int:
         help="Write the generated corpus here and leave it in place.",
     )
     parser.add_argument("--json", type=Path, help="Write full results as JSON.")
+    parser.add_argument(
+        "--verbose", action="store_true",
+        help="Print each scanner's own verdict string per case, unnormalized.",
+    )
     args = parser.parse_args()
 
     if args.keep_corpus:
@@ -137,6 +173,8 @@ def main() -> int:
 
     adapters = [a for a in all_adapters() if a.available()]
     _print_report(scores, per_case, adapters)
+    if args.verbose:
+        _print_verdicts(per_case, [s.scanner for s in scores])
     print(f"corpus: {corpus_note}")
     print("scanners run:", ", ".join(f"{a.name} [{a.license}]" for a in adapters))
 
