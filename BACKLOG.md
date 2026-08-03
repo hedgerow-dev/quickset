@@ -18,7 +18,7 @@ published:
   all: modelscan prints a human preamble before the report *and* its console
   renderer hard-wraps JSON at the terminal width, mid string-literal, producing
   genuinely invalid JSON. Now read via `-o <file>`, and the text fallback is
-  deleted rather than repaired — an unparseable report is an adapter failure,
+  deleted rather than repaired. An unparseable report is an adapter failure,
   not a detection result, and must never be scored as either.
 * The `fickling` adapter scored **0 on everything**. `--check-safety` prints
   nothing at all on either verdict and signals only through its exit code; the
@@ -30,7 +30,7 @@ printed, so a scanner erroring on every case looked identical to one flagging
 nothing), and `--verbose` prints each scanner's own verdict string per case.
 
 **Real benign models** (`picklebench/realmodels.py`, 8 entries, SHA-256 pinned,
-fetched not committed). Chosen for format diversity — zip torch, legacy non-zip
+fetched not committed). Chosen for format diversity: zip torch, legacy non-zip
 torch, raw-pickle joblib, zlib joblib, and two sklearn models carrying genuine
 user-defined classes. They paid for themselves immediately:
 
@@ -44,7 +44,7 @@ user-defined classes. They paid for themselves immediately:
   No hand-written benign pickle would have surfaced either.
 
 **Timeouts no longer crash the run.** The first time a scanner actually timed
-out — fickling, on the DUP amplification case — `subprocess.TimeoutExpired`
+out (fickling, on the DUP amplification case), `subprocess.TimeoutExpired`
 propagated out of the runner and killed the whole benchmark. Timeouts are now
 scored as errors, never as detections: a scanner that hangs has not detected
 anything, and crediting it would reward the failure.

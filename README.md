@@ -21,7 +21,7 @@ fickling       11/13 (85%)      7/12 (58%)         6
 open-rowan     13/13 (100%)     0/12 (0%)          -
 ```
 
-The benign half is 8 real hash-pinned HuggingFace models plus 4 hand-written pickles. Fetch the real ones first — without them the false-positive column is measured against synthetic files only, which is much weaker evidence:
+The benign half is 8 real hash-pinned HuggingFace models plus 4 hand-written pickles. Fetch the real ones first. Without them the false-positive column is measured against synthetic files only, which is much weaker evidence:
 
 ```bash
 python -m picklebench.realmodels
@@ -31,14 +31,14 @@ Run `--verbose` for each scanner's own verdict string per case, unnormalized.
 
 Scanners are invoked through their command-line interfaces as subprocesses, never imported, and scored at their own shipped defaults. A scanner that is not installed is skipped, not failed.
 
-**Read those columns carefully, because they are not measuring the same thing.** fickling grades on four severity levels and treats anything above `LIKELY_SAFE` as unsafe; it is built to be read by a human, not to gate a pipeline. Its false-positive column reflects that design goal, not a defect — it rates `OrderedDict.update(...)` as "can execute arbitrary code", which is *true* and also not what a CI gate wants. modelscan's low detection is the opposite trade: it is the most conservative of the four and missed every gadget that is not on its operator list, including cloudpickle (verified: 0 issues, 0 errors, not an adapter artifact).
+**Read those columns carefully, because they are not measuring the same thing.** fickling grades on four severity levels and treats anything above `LIKELY_SAFE` as unsafe; it is built to be read by a human, not to gate a pipeline. Its false-positive column reflects that design goal, not a defect. It rates `OrderedDict.update(...)` as "can execute arbitrary code", which is *true* and also not what a CI gate wants. modelscan's low detection is the opposite trade: it is the most conservative of the four and missed every gadget that is not on its operator list, including cloudpickle (verified: 0 issues, 0 errors, not an adapter artifact).
 
 Results worth singling out because they are about the tools, not the corpus:
 
 - picklescan and fickling **both** rate an ordinary pickled `uuid.UUID` as dangerous, from independent causes (a `uuid: *` module wildcard, and an "overtly malicious" import rule).
-- fickling rates three ordinary sklearn models — `sklearn-iris`, `mlewp-sklearn-wine`, `plain-sklearn` — as `LIKELY_OVERTLY_MALICIOUS`. Adding real models is what surfaced this; no hand-written benign pickle would have.
+- fickling rates three ordinary sklearn models (`sklearn-iris`, `mlewp-sklearn-wine`, `plain-sklearn`) as `LIKELY_OVERTLY_MALICIOUS`. Adding real models is what surfaced this; no hand-written benign pickle would have.
 - fickling **errors on five cases**: it cannot open zip-format torch checkpoints or zlib-compressed joblib ("No pickle found"), and it **crashes** on the `EXT1` opcode. ColdwaterQ flagged this class in the DEFCON 30 talk: "Bugs prevent loading every pickle."
-- fickling **times out** (120s) on the `DUP` amplification case. Counted as an error, never as a detection — a scanner that hangs has not detected anything, and crediting it would reward the failure.
+- fickling **times out** (120s) on the `DUP` amplification case. Counted as an error, never as a detection. A scanner that hangs has not detected anything, and crediting it would reward the failure.
 - modelscan is the most conservative of the four and misses every gadget not on its operator list, including cloudpickle (verified: 0 issues, 0 errors, not an adapter artifact).
 
 ## Design decisions
@@ -81,4 +81,10 @@ Early. The corpus is small and pickle-focused. Worth adding: Keras Lambda layers
 
 ## Licence
 
-Not yet chosen.
+MIT, covering picklebench's own code and case specifications.
+
+It does not cover the models fetched by `picklebench.realmodels`, which carry
+their own licences (BSD-3-Clause, MIT, or unstated) and are downloaded to a
+gitignored cache rather than redistributed here. Nor does it cover the scanners
+under test, which are invoked as separate processes and never linked. That
+matters for fickling in particular, which is LGPL-3.0.
