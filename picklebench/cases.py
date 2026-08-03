@@ -204,6 +204,27 @@ MALICIOUS: tuple[Case, ...] = (
         ),
     ),
     Case(
+        id="cloudpickle-make-function",
+        filename="cloudpickle_make_function.pkl",
+        malicious=True,
+        technique="cloudpickle._make_function rebuilds a live function from a "
+                  "marshalled code object.",
+        origin="published-technique",
+        reference="Carried in picklescan's _unsafe_globals; cloudpickle "
+                  "function reconstruction is a long-documented pickle "
+                  "code-execution path.",
+        notes="The case that argues against pure argument-evidence scoring. "
+              "The payload argument is marshalled bytecode, not a command or "
+              "a URL, so no argument heuristic can fire on it -- only the "
+              "callable's name identifies this one. A scanner whose entire "
+              "strategy is 'look at what the call is passed' misses it.",
+        tags=("deny-list-only", "code-object"),
+        build=lambda: _reduce(
+            "cloudpickle.cloudpickle", "_make_function",
+            b")",  # EMPTY_TUPLE: no resolvable literal argument at all
+        ),
+    ),
+    Case(
         id="legacy-layout-second-pickle",
         filename="legacy_layout.pt",
         malicious=True,
