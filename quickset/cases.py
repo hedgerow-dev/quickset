@@ -22,7 +22,7 @@ Two properties make the generated payloads safe to have on disk:
 
 The corpus is only as honest as its provenance, so each case cites where the
 technique comes from. Cases invented here, with no published source, are
-marked `origin="picklebench"` and should be treated as the weakest evidence in
+marked `origin="quickset"` and should be treated as the weakest evidence in
 the set: a benchmark whose author also writes the test cases can accidentally
 encode one scanner's detection logic as though it were ground truth.
 """
@@ -39,7 +39,7 @@ MARKER = "PICKLEBENCH-INERT-MARKER"
 # RFC 2606 reserves .invalid as never-resolvable. Using it means the network
 # cases are structurally identical to the real gadgets while being incapable of
 # contacting anything.
-INERT_HOST = "marker.picklebench.invalid"
+INERT_HOST = "marker.quickset.invalid"
 INERT_URL = f"http://{INERT_HOST}/marker"
 
 
@@ -233,7 +233,7 @@ MALICIOUS: tuple[Case, ...] = (
                   "unchanged. A scanner that simulates the stack but does not "
                   "model EXT1's push pops the callable instead, desyncing "
                   "every opcode that follows.",
-        origin="picklebench",
+        origin="quickset",
         reference="Found by auditing a scanner's opcode coverage against "
                   "pickletools' 68-opcode table; reported against open-rowan, "
                   "which lost the resolved call before 2026-08. The same "
@@ -324,7 +324,7 @@ MALICIOUS: tuple[Case, ...] = (
                   "legacy multi-pickle save format. A scanner that stops at "
                   "the first STOP opcode inspects a 14-byte magic number and "
                   "declares the file clean.",
-        origin="picklebench",
+        origin="quickset",
         reference="Found while building this corpus; reported against "
                   "open-rowan, which missed it before 2026-08.",
         notes="Not a deny-list bypass -- the payload is the most obvious "
@@ -341,7 +341,7 @@ MALICIOUS: tuple[Case, ...] = (
         malicious=True,
         technique="The same direct os.system payload, named pytorch_model.bin "
                   "-- the most common pickle-bearing filename on HuggingFace.",
-        origin="picklebench",
+        origin="quickset",
         reference="Found while building this corpus; open-rowan skipped .bin "
                   "on extension before 2026-08.",
         notes="Scores extension dispatch, not opcode analysis. A scanner that "
@@ -414,7 +414,7 @@ BENIGN: tuple[Case, ...] = (
         filename="benign_state_dict.pkl",
         malicious=False,
         technique="An ordinary OrderedDict state_dict.",
-        origin="picklebench",
+        origin="quickset",
         tags=("baseline",),
         build=_benign_state_dict,
     ),
@@ -424,7 +424,7 @@ BENIGN: tuple[Case, ...] = (
         malicious=False,
         technique="datetime, Decimal, UUID and Fraction: unrecognized stdlib "
                   "globals that ordinary pickles construct constantly.",
-        origin="picklebench",
+        origin="quickset",
         notes="Targets the tempting-but-wrong heuristic 'the stdlib is where "
               "gadgets live, so flag unrecognized stdlib globals'. The stdlib "
               "is also where the ordinary data types live.",
@@ -437,7 +437,7 @@ BENIGN: tuple[Case, ...] = (
         malicious=False,
         technique="A user-defined class, on neither the allow nor the deny "
                   "list, constructed via NEWOBJ.",
-        origin="picklebench",
+        origin="quickset",
         notes="Targets 'escalate any unknown global that is actually invoked'. "
               "A benign custom class is invoked exactly like a gadget is.",
         tags=("false-positive-bait",),
@@ -449,7 +449,7 @@ BENIGN: tuple[Case, ...] = (
         malicious=False,
         technique="Filesystem paths and an https URL as ordinary metadata "
                   "strings, not as arguments to a dangerous callable.",
-        origin="picklebench",
+        origin="quickset",
         notes="Targets naive argument-content matching.",
         tags=("false-positive-bait",),
         build=_benign_paths_and_urls,
@@ -460,7 +460,7 @@ BENIGN: tuple[Case, ...] = (
 def real_model_cases() -> tuple[Case, ...]:
     """Benign cases backed by real, hash-pinned models that have been fetched.
 
-    Empty until `python -m picklebench.realmodels` has run. Skipped rather
+    Empty until `python -m quickset.realmodels` has run. Skipped rather
     than failed when absent, so the benchmark still works offline -- but a run
     without them is measuring false positives against hand-written pickles
     only, which is much weaker evidence.

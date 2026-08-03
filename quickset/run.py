@@ -1,9 +1,9 @@
 """Runner: build the corpus, run every installed scanner, print the matrix.
 
 Usage:
-    python -m picklebench.run
-    python -m picklebench.run --keep-corpus ./corpus
-    python -m picklebench.run --json results.json
+    python -m quickset.run
+    python -m quickset.run --keep-corpus ./corpus
+    python -m quickset.run --json results.json
 """
 
 from __future__ import annotations
@@ -111,7 +111,7 @@ def run_external(adapters: list[Adapter]) -> list[tuple[object, dict[str, tuple[
 def _print_external(results, names: list[str]) -> None:
     if not results:
         print()
-        print("No external corpora fetched. Run `python -m picklebench.external`")
+        print("No external corpora fetched. Run `python -m quickset.external`")
         print("to add them. They are the half of this benchmark not written here,")
         print("and every one of them has found a bug this project's own cases missed.")
         print()
@@ -246,7 +246,7 @@ def main() -> int:
         scores, per_case = run(args.keep_corpus)
         corpus_note = str(args.keep_corpus)
     else:
-        with tempfile.TemporaryDirectory(prefix="picklebench-") as tmp:
+        with tempfile.TemporaryDirectory(prefix="quickset-") as tmp:
             scores, per_case = run(Path(tmp))
         corpus_note = "(temporary, discarded)"
 

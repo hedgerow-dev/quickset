@@ -21,8 +21,8 @@ from pathlib import Path
 
 import pytest
 
-from picklebench import cases
-from picklebench.adapters import all_adapters
+from quickset import cases
+from quickset.adapters import all_adapters
 
 
 @pytest.fixture()

@@ -18,7 +18,7 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install picklebench
+      - name: Install quickset
         run: pip install -e ".[dev]"
 
       # Installed here rather than declared as dependencies: adapters shell out
@@ -28,7 +28,7 @@ jobs:
         run: pip install picklescan modelscan fickling
 
       - name: Fetch real benign models
-        run: python -m picklebench.realmodels
+        run: python -m quickset.realmodels
 
       # The load-bearing job. Every adapter is checked against a file its
       # scanner certainly flags and one it certainly does not, because the
@@ -44,7 +44,7 @@ jobs:
       # Runs the benchmark itself so a change that breaks the harness fails
       # here rather than the next time someone quotes a number from it.
       - name: Benchmark smoke run
-        run: python -m picklebench.run --json results.json
+        run: python -m quickset.run --json results.json
 
       - uses: actions/upload-artifact@v4
         if: always()

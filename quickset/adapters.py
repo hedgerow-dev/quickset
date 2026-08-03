@@ -83,7 +83,7 @@ class Adapter:
             )
         except subprocess.TimeoutExpired:
             return subprocess.CompletedProcess(
-                args, TIMED_OUT_RETURNCODE, stdout="", stderr="picklebench: timed out"
+                args, TIMED_OUT_RETURNCODE, stdout="", stderr="quickset: timed out"
             )
 
 

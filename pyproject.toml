@@ -3,7 +3,7 @@ requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "picklebench"
+name = "quickset"
 version = "0.1.0"
 description = "A neutral benchmark for ML model-file scanners: detection and false positives, scored separately."
 requires-python = ">=3.10"
@@ -18,7 +18,7 @@ scanners = ["picklescan", "modelscan"]
 dev = ["pytest"]
 
 [project.scripts]
-picklebench = "picklebench.run:main"
+quickset = "quickset.run:main"
 
 [tool.setuptools.packages.find]
-include = ["picklebench*"]
+include = ["quickset*"]

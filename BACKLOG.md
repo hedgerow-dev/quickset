@@ -29,7 +29,7 @@ Also landed: `errors` is surfaced in the summary (previously counted and never
 printed, so a scanner erroring on every case looked identical to one flagging
 nothing), and `--verbose` prints each scanner's own verdict string per case.
 
-**Real benign models** (`picklebench/realmodels.py`, 8 entries, SHA-256 pinned,
+**Real benign models** (`quickset/realmodels.py`, 8 entries, SHA-256 pinned,
 fetched not committed). Chosen for format diversity: zip torch, legacy non-zip
 torch, raw-pickle joblib, zlib joblib, and two sklearn models carrying genuine
 user-defined classes. They paid for themselves immediately:
@@ -61,8 +61,13 @@ Note Python 3.13+ cannot run this benchmark: `modelscan` caps at `<3.13`.
   question it raises is whether this project should exist separately at all,
   or whether its distinctive parts (inert generated payloads, a real benign
   half, parser-coverage as its own axis) are better contributed upstream.
-* **The name is taken.** "PickleBench" is the ShadowPickle paper's benchmark,
-  same domain, published first. Rename needed before this goes anywhere public.
+* **Done: renamed to `quickset`** (2026-08-03). The original name collided with
+  the ShadowPickle paper's PickleBench, same domain, published first. The new
+  name fits the Hedgerow project family (Rowan, Thicket, Briar, Blackthorn) and
+  is the traditional term for living cuttings set to grow a hedge, which is how
+  this corpus works. Note there are unrelated commercial products called
+  QuickSet, including a physical-security company, so search results will be
+  noisy even though the PyPI name was free.
 * **Published results disagree with these.** ShadowPickle reports fickling at
   100% and picklescan/ModelScan at 0% against its attacks; this corpus ranks
   them close to the reverse. Worth understanding *why* before either number is
@@ -91,8 +96,8 @@ Note Python 3.13+ cannot run this benchmark: `modelscan` caps at `<3.13`.
 ## Corpus credibility
 
 * **Done: external corpora are now fetched and scored by the harness**
-  (`picklebench/external.py`), not by hand. picklescan's 46-file set and
-  PickleCloak's 154 exploit pickles run on every `picklebench.run`. This was
+  (`quickset/external.py`), not by hand. picklescan's 46-file set and
+  PickleCloak's 154 exploit pickles run on every `quickset.run`. This was
   the highest-leverage item outstanding: every bypass fixed in Rowan during
   this project's development came from an external corpus or from adversary
   literature, and none from reviewing Rowan's own rules, yet nothing re-ran

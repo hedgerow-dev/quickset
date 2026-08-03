@@ -1,12 +1,12 @@
-# picklebench
+# quickset
 
 A benchmark for ML model-file scanners. Detection and false positives, scored separately, on a corpus that generates itself.
 
-> **Naming conflict, unresolved.** "PickleBench" is already the name of the benchmark published with [ShadowPickle](https://arxiv.org/html/2607.17503v1) (arXiv:2607.17503), in this exact domain. This project needs renaming.
+*Quickset* is the traditional term for living cuttings set in the ground to grow a hedge. The corpus here is grown the same way: nothing malicious is stored, only the cuttings it grows from.
 
 ## Prior art
 
-An earlier version of this README claimed there was no shared corpus for this, and that this project was "an attempt at a public one". **That was wrong, and it was asserted without checking.** There is substantial prior work:
+An earlier version of this README claimed there was no shared corpus for this, and that this project was "an attempt at a public one". **That was wrong, and it was asserted without checking.** There is substantial prior work, including one benchmark whose name this project originally collided with:
 
 | Corpus | Size / scope |
 |---|---|
@@ -33,7 +33,7 @@ Whether that justifies a separate project rather than contributing cases upstrea
 ```bash
 pip install -e .
 pip install picklescan          # or modelscan, fickling, ...
-python -m picklebench.run
+python -m quickset.run
 ```
 
 ```
@@ -51,9 +51,9 @@ open-rowan     13/13 (100%)     0/12 (0%)          -
 This corpus was written here, so its numbers flatter whatever it was written alongside. These were not, and they are now fetched and scored by the harness rather than by hand:
 
 ```bash
-python -m picklebench.external     # fetch
-python -m picklebench.run          # scores them alongside the built-in corpus
-python -m picklebench.external --purge   # delete; they are working exploits
+python -m quickset.external     # fetch
+python -m quickset.run          # scores them alongside the built-in corpus
+python -m quickset.external --purge   # delete; they are working exploits
 ```
 
 They are gitignored, never committed, and never loaded or unpickled. Ground truth comes from each corpus author's own labelling; a file whose label the author does not state is excluded from scoring rather than assigned one.
@@ -72,7 +72,7 @@ picklescan's own corpus is its own test suite, so its 97% there means little; th
 The benign half is 8 real hash-pinned HuggingFace models plus 4 hand-written pickles. Fetch the real ones first. Without them the false-positive column is measured against synthetic files only, which is much weaker evidence:
 
 ```bash
-python -m picklebench.realmodels
+python -m quickset.realmodels
 ```
 
 Run `--verbose` for each scanner's own verdict string per case, unnormalized.
@@ -97,7 +97,7 @@ Results worth singling out because they are about the tools, not the corpus:
 
 **Detection and false positives are never combined into one score.** A scanner that flags every file has perfect detection; one that flags nothing has a perfect false-positive rate. Only the pair means anything, and single-number rankings are how benchmarks start lying.
 
-**Case origins are declared.** `published-cve` and `published-technique` cases cite a source. Cases invented here are marked `picklebench` and should be treated as the weakest evidence in the set: a benchmark whose author also writes the test cases can accidentally encode one scanner's detection logic as ground truth.
+**Case origins are declared.** `published-cve` and `published-technique` cases cite a source. Cases invented here are marked `quickset` and should be treated as the weakest evidence in the set: a benchmark whose author also writes the test cases can accidentally encode one scanner's detection logic as ground truth.
 
 **Two distinct failure modes are scored separately.** Most cases test whether a scanner recognises a dangerous callable. Two (`legacy-layout-second-pickle`, `bin-extension-dispatch`) test whether it reads the file at all. A parser-coverage gap defeats every rule at once and deserves to be visible, not averaged away.
 
@@ -111,13 +111,13 @@ If you do not trust the numbers, the harness is thirty lines and you can run it 
 
 ## Adding a case
 
-Add a `Case` to `MALICIOUS` or `BENIGN` in `picklebench/cases.py`. Payload arguments must stay inert; `tests/test_corpus.py` enforces that and will fail on a live command or a resolvable host.
+Add a `Case` to `MALICIOUS` or `BENIGN` in `quickset/cases.py`. Payload arguments must stay inert; `tests/test_corpus.py` enforces that and will fail on a live command or a resolvable host.
 
 Useful cases are ones where scanners disagree. A case every scanner catches measures nothing except that the harness works.
 
 ## Adding a scanner
 
-Add an `Adapter` to `picklebench/adapters.py` implementing `scan(path) -> ScanOutcome`.
+Add an `Adapter` to `quickset/adapters.py` implementing `scan(path) -> ScanOutcome`.
 
 Then run `tests/test_adapters.py`, which is the most important file here. During development the Rowan adapter read a JSON field named `file_path` when the actual field was `file`. Every lookup returned nothing, and the harness confidently printed `0/9 (0%)` for a scanner that detects 9 of 9. Nothing crashed. A benchmark's characteristic failure is not a crash, it is a plausible number, so every adapter is pinned against a file its scanner certainly flags and one it certainly does not.
 
@@ -129,9 +129,9 @@ Early, and its premise needs revisiting in light of the prior art above. The cor
 
 ## Licence
 
-MIT, covering picklebench's own code and case specifications.
+MIT, covering quickset's own code and case specifications.
 
-It does not cover the models fetched by `picklebench.realmodels`, which carry
+It does not cover the models fetched by `quickset.realmodels`, which carry
 their own licences (BSD-3-Clause, MIT, or unstated) and are downloaded to a
 gitignored cache rather than redistributed here. Nor does it cover the scanners
 under test, which are invoked as separate processes and never linked. That

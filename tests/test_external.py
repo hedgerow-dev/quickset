@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import pytest
 
-from picklebench import external
+from quickset import external
 
 
 def test_every_corpus_declares_provenance():
@@ -78,7 +78,7 @@ class TestNoBenignHalfIsDeclared:
 
 
 class TestFetchedCorpora:
-    """Skipped unless `python -m picklebench.external` has run."""
+    """Skipped unless `python -m quickset.external` has run."""
 
     @pytest.mark.parametrize("corpus", external.CORPORA, ids=lambda c: c.id)
     def test_fetched_corpus_has_scoreable_files(self, corpus):
