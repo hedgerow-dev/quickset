@@ -48,7 +48,15 @@ open-rowan     13/13 (100%)     0/12 (0%)          -
 
 ### Scored against externally-authored corpora
 
-This corpus was written here, so its numbers flatter whatever it was written alongside. These were not:
+This corpus was written here, so its numbers flatter whatever it was written alongside. These were not, and they are now fetched and scored by the harness rather than by hand:
+
+```bash
+python -m picklebench.external     # fetch
+python -m picklebench.run          # scores them alongside the built-in corpus
+python -m picklebench.external --purge   # delete; they are working exploits
+```
+
+They are gitignored, never committed, and never loaded or unpickled. Ground truth comes from each corpus author's own labelling; a file whose label the author does not state is excluded from scoring rather than assigned one.
 
 ```
                               picklescan  modelscan  modelaudit  fickling  open-rowan

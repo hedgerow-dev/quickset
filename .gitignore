@@ -4,3 +4,4 @@ __pycache__/
 corpus/
 results.json
 model-cache/
+external-cache/

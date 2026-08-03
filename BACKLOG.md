@@ -90,6 +90,14 @@ Note Python 3.13+ cannot run this benchmark: `modelscan` caps at `<3.13`.
 
 ## Corpus credibility
 
+* **Done: external corpora are now fetched and scored by the harness**
+  (`picklebench/external.py`), not by hand. picklescan's 46-file set and
+  PickleCloak's 154 exploit pickles run on every `picklebench.run`. This was
+  the highest-leverage item outstanding: every bypass fixed in Rowan during
+  this project's development came from an external corpus or from adversary
+  literature, and none from reviewing Rowan's own rules, yet nothing re-ran
+  those corpora. Now something does.
+
 * **Authorship bias is the main weakness.** Of 13 cases, 6 were written here and
   4 of those exist because Rowan failed them. A benchmark whose author also
   writes the test cases and ships one of the entrants will encode that

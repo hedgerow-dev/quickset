@@ -15,6 +15,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 from . import cases as case_module
+from . import external as external_module
 from .adapters import Adapter, all_adapters
 
 
@@ -70,6 +71,80 @@ def run(corpus_dir: Path) -> tuple[list[Score], dict]:
         scores.append(Score(adapter.name, detected, n_mal, fp, n_ben, errors))
 
     return scores, per_case
+
+
+def run_external(adapters: list[Adapter]) -> list[tuple[object, dict[str, tuple[int, int, int, int]]]]:
+    """Score each fetched external corpus. Returns (corpus, {scanner: counts}).
+
+    Counts are (detected, malicious, false_positives, benign). Files the
+    corpus author does not label are skipped, never guessed at.
+    """
+    results = []
+    for corpus in external_module.CORPORA:
+        if not external_module.is_fetched(corpus):
+            continue
+        files = sorted(external_module.corpus_dir(corpus).iterdir())
+        tally: dict[str, tuple[int, int, int, int]] = {}
+        for adapter in adapters:
+            det = mal = fp = ben = 0
+            for f in files:
+                label = external_module.label_of(corpus, f.name)
+                if label is None:
+                    continue
+                # Each sample gets its own directory: several scanners read
+                # sibling files for context, which would leak between cases.
+                with tempfile.TemporaryDirectory() as tmp:
+                    target = Path(tmp) / f.name
+                    target.write_bytes(f.read_bytes())
+                    outcome = adapter.scan(target)
+                if label:
+                    mal += 1
+                    det += bool(outcome.flagged)
+                else:
+                    ben += 1
+                    fp += bool(outcome.flagged)
+            tally[adapter.name] = (det, mal, fp, ben)
+        results.append((corpus, tally))
+    return results
+
+
+def _print_external(results, names: list[str]) -> None:
+    if not results:
+        print()
+        print("No external corpora fetched. Run `python -m picklebench.external`")
+        print("to add them. They are the half of this benchmark not written here,")
+        print("and every one of them has found a bug this project's own cases missed.")
+        print()
+        return
+
+    print()
+    print("EXTERNALLY-AUTHORED CORPORA")
+    for corpus, tally in results:
+        print()
+        print(f"  {corpus.name}  [{corpus.license}]")
+        print(f"  {corpus.origin}")
+        for line in _wrap(corpus.note, 74):
+            print(f"    {line}")
+        print()
+        for name in names:
+            det, mal, fp, ben = tally.get(name, (0, 0, 0, 0))
+            d = f"{det}/{mal} ({det / mal:.0%})" if mal else "-"
+            f_ = f"{fp}/{ben} ({fp / ben:.0%})" if ben else "no benign half"
+            print(f"      {name:12} detection {d:14} false positives {f_}")
+    print()
+
+
+def _wrap(text: str, width: int) -> list[str]:
+    words, lines, cur = text.split(), [], ""
+    for w in words:
+        if len(cur) + len(w) + 1 > width:
+            lines.append(cur)
+            cur = w
+        else:
+            cur = f"{cur} {w}".strip()
+    if cur:
+        lines.append(cur)
+    return lines
 
 
 def _print_verdicts(per_case: dict, names: list[str]) -> None:
@@ -161,6 +236,10 @@ def main() -> int:
         "--verbose", action="store_true",
         help="Print each scanner's own verdict string per case, unnormalized.",
     )
+    parser.add_argument(
+        "--no-external", action="store_true",
+        help="Skip externally-authored corpora even when they are fetched.",
+    )
     args = parser.parse_args()
 
     if args.keep_corpus:
@@ -175,6 +254,8 @@ def main() -> int:
     _print_report(scores, per_case, adapters)
     if args.verbose:
         _print_verdicts(per_case, [s.scanner for s in scores])
+    if not args.no_external:
+        _print_external(run_external(adapters), [s.scanner for s in scores])
     print(f"corpus: {corpus_note}")
     print("scanners run:", ", ".join(f"{a.name} [{a.license}]" for a in adapters))
 
