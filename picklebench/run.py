@@ -82,7 +82,7 @@ def _print_verdicts(per_case: dict, names: list[str]) -> None:
     """
     print()
     print("VERDICTS (each scanner's own words, unnormalized)")
-    for case in case_module.ALL_CASES:
+    for case in case_module.all_cases():
         print()
         print(f"  {case.id}  [{'malicious' if case.malicious else 'benign'}]")
         for name in names:
@@ -96,7 +96,7 @@ def _print_verdicts(per_case: dict, names: list[str]) -> None:
 
 def _print_report(scores: list[Score], per_case: dict, adapters: list[Adapter]) -> None:
     names = [s.scanner for s in scores]
-    width = max([len(c.id) for c in case_module.ALL_CASES] + [12])
+    width = max([len(c.id) for c in case_module.all_cases()] + [12])
 
     print()
     print("PER-CASE RESULTS  (o = flagged, . = not flagged)")
@@ -105,7 +105,7 @@ def _print_report(scores: list[Score], per_case: dict, adapters: list[Adapter]) 
     print(header)
     print("-" * len(header))
 
-    for case in case_module.ALL_CASES:
+    for case in case_module.all_cases():
         truth = "MAL " if case.malicious else "ben "
         row = case.id.ljust(width) + "  " + truth + "    "
         cells = []
@@ -193,7 +193,7 @@ def main() -> int:
                             "reference": c.reference,
                             "tags": list(c.tags),
                         }
-                        for c in case_module.ALL_CASES
+                        for c in case_module.all_cases()
                     ],
                 },
                 indent=2,

@@ -15,10 +15,16 @@ python -m picklebench.run
 ```
 scanner        detection        false positives    errors
 --------------------------------------------------------------
-picklescan     12/13 (92%)      1/4 (25%)          -
-modelscan       5/13 (38%)      0/4 (0%)           -
-fickling       12/13 (92%)      3/4 (75%)          1
-open-rowan     13/13 (100%)     0/4 (0%)           -
+picklescan     12/13 (92%)      1/12 (8%)          -
+modelscan       5/13 (38%)      0/12 (0%)          -
+fickling       11/13 (85%)      7/12 (58%)         6
+open-rowan     13/13 (100%)     0/12 (0%)          -
+```
+
+The benign half is 8 real hash-pinned HuggingFace models plus 4 hand-written pickles. Fetch the real ones first — without them the false-positive column is measured against synthetic files only, which is much weaker evidence:
+
+```bash
+python -m picklebench.realmodels
 ```
 
 Run `--verbose` for each scanner's own verdict string per case, unnormalized.
@@ -27,7 +33,13 @@ Scanners are invoked through their command-line interfaces as subprocesses, neve
 
 **Read those columns carefully, because they are not measuring the same thing.** fickling grades on four severity levels and treats anything above `LIKELY_SAFE` as unsafe; it is built to be read by a human, not to gate a pipeline. Its false-positive column reflects that design goal, not a defect — it rates `OrderedDict.update(...)` as "can execute arbitrary code", which is *true* and also not what a CI gate wants. modelscan's low detection is the opposite trade: it is the most conservative of the four and missed every gadget that is not on its operator list, including cloudpickle (verified: 0 issues, 0 errors, not an adapter artifact).
 
-Two results worth singling out because they are about the tools, not the corpus. picklescan and fickling **both** rate an ordinary pickled `uuid.UUID` as dangerous, from independent causes (a `uuid: *` module wildcard, and an "overtly malicious" import rule). And fickling **crashes** on the `EXT1` opcode in `stack-desync-ext1-pop` — counted here as an error, not a detection, which is exactly the distinction the `errors` column exists to preserve. ColdwaterQ flagged this class in the DEFCON 30 talk: "Bugs prevent loading every pickle."
+Results worth singling out because they are about the tools, not the corpus:
+
+- picklescan and fickling **both** rate an ordinary pickled `uuid.UUID` as dangerous, from independent causes (a `uuid: *` module wildcard, and an "overtly malicious" import rule).
+- fickling rates three ordinary sklearn models — `sklearn-iris`, `mlewp-sklearn-wine`, `plain-sklearn` — as `LIKELY_OVERTLY_MALICIOUS`. Adding real models is what surfaced this; no hand-written benign pickle would have.
+- fickling **errors on five cases**: it cannot open zip-format torch checkpoints or zlib-compressed joblib ("No pickle found"), and it **crashes** on the `EXT1` opcode. ColdwaterQ flagged this class in the DEFCON 30 talk: "Bugs prevent loading every pickle."
+- fickling **times out** (120s) on the `DUP` amplification case. Counted as an error, never as a detection — a scanner that hangs has not detected anything, and crediting it would reward the failure.
+- modelscan is the most conservative of the four and misses every gadget not on its operator list, including cloudpickle (verified: 0 issues, 0 errors, not an adapter artifact).
 
 ## Design decisions
 

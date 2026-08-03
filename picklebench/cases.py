@@ -457,7 +457,38 @@ BENIGN: tuple[Case, ...] = (
 )
 
 
+def real_model_cases() -> tuple[Case, ...]:
+    """Benign cases backed by real, hash-pinned models that have been fetched.
+
+    Empty until `python -m picklebench.realmodels` has run. Skipped rather
+    than failed when absent, so the benchmark still works offline -- but a run
+    without them is measuring false positives against hand-written pickles
+    only, which is much weaker evidence.
+    """
+    from . import realmodels
+
+    return tuple(
+        Case(
+            id=model.id,
+            filename=model.filename,
+            malicious=False,
+            technique=f"Real {model.fmt} model from {model.repo}, SHA-256 pinned.",
+            origin="real-world",
+            reference=f"https://huggingface.co/{model.repo}",
+            notes=model.note,
+            tags=("real-model", "false-positive-bait"),
+            build=lambda m=model: realmodels.cached_path(m).read_bytes(),
+        )
+        for model in realmodels.cached_models()
+    )
+
+
 ALL_CASES: tuple[Case, ...] = MALICIOUS + BENIGN
+
+
+def all_cases() -> tuple[Case, ...]:
+    """Every case, including real models when they have been fetched."""
+    return ALL_CASES + real_model_cases()
 
 
 def write_corpus(target_dir) -> dict[str, Case]:
@@ -467,7 +498,7 @@ def write_corpus(target_dir) -> dict[str, Case]:
     target = Path(target_dir)
     target.mkdir(parents=True, exist_ok=True)
     written: dict[str, Case] = {}
-    for case in ALL_CASES:
+    for case in all_cases():
         dest = target / case.id / case.filename
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_bytes(case.build())

@@ -26,6 +26,9 @@ from dataclasses import dataclass
 from pathlib import Path
 
 TIMEOUT_SECONDS = 120
+# Sentinel returncode for a scanner that ran out of time. Distinct from any
+# real exit status so a hang is never mistaken for a verdict.
+TIMED_OUT_RETURNCODE = -9999
 
 
 @dataclass(frozen=True)
@@ -51,13 +54,32 @@ class Adapter:
         raise NotImplementedError
 
     def _run(self, *args: str) -> subprocess.CompletedProcess:
-        return subprocess.run(
-            args,
-            capture_output=True,
-            text=True,
-            timeout=TIMEOUT_SECONDS,
-            check=False,
-        )
+        """Run a scanner, converting a timeout into a result instead of an
+        exception.
+
+        A resource-exhaustion case is a legitimate corpus entry -- the
+        `dup-amplification-billion-laughs` case exists precisely to see which
+        scanners survive one -- so a scanner hanging on it must not take the
+        whole run down with it. It did exactly that the first time a scanner
+        actually timed out.
+
+        The timeout is reported through `TIMED_OUT_RETURNCODE` so callers can
+        distinguish it from a clean verdict. It is scored as an error, never
+        as a detection: a scanner that hangs has not detected anything, and
+        crediting it would reward the failure.
+        """
+        try:
+            return subprocess.run(
+                args,
+                capture_output=True,
+                text=True,
+                timeout=TIMEOUT_SECONDS,
+                check=False,
+            )
+        except subprocess.TimeoutExpired:
+            return subprocess.CompletedProcess(
+                args, TIMED_OUT_RETURNCODE, stdout="", stderr="picklebench: timed out"
+            )
 
 
 class PicklescanAdapter(Adapter):
@@ -68,6 +90,8 @@ class PicklescanAdapter(Adapter):
 
     def scan(self, path: Path) -> ScanOutcome:
         proc = self._run(self.executable, "-p", str(path))
+        if proc.returncode == TIMED_OUT_RETURNCODE:
+            return ScanOutcome(flagged=False, detail="timed out", errored=True)
         text = proc.stdout + proc.stderr
         # picklescan prints "dangerous import '<x>' FOUND" per hit and an
         # "Infected files: N" summary line.
@@ -100,7 +124,9 @@ class ModelscanAdapter(Adapter):
         # to honour.
         with tempfile.TemporaryDirectory() as tmp:
             out = Path(tmp) / "report.json"
-            self._run(self.executable, "-p", str(path), "-r", "json", "-o", str(out))
+            proc = self._run(self.executable, "-p", str(path), "-r", "json", "-o", str(out))
+            if proc.returncode == TIMED_OUT_RETURNCODE:
+                return ScanOutcome(flagged=False, detail="timed out", errored=True)
             report = None
             if out.exists():
                 try:
@@ -163,6 +189,9 @@ class FicklingAdapter(Adapter):
                 except (json.JSONDecodeError, ValueError, OSError):
                     severity = ""
 
+        if proc.returncode == TIMED_OUT_RETURNCODE:
+            return ScanOutcome(flagged=False, detail="timed out", errored=True)
+
         stderr = proc.stderr.strip()
         if not severity and stderr and ("Traceback" in stderr or "Error" in stderr):
             # A crash also exits non-zero, and counting that as a detection
@@ -195,11 +224,13 @@ class OpenRowanAdapter(Adapter):
         # case take an Opengrep run.
         with tempfile.TemporaryDirectory() as tmp:
             out = Path(tmp) / "report.json"
-            self._run(
+            proc = self._run(
                 self.executable, "scan", str(path.parent),
                 "--format", "json", "-o", str(out),
                 "--no-sca", "--no-taint", "--no-cross-file",
             )
+            if proc.returncode == TIMED_OUT_RETURNCODE:
+                return ScanOutcome(flagged=False, detail="timed out", errored=True)
             if not out.exists():
                 return ScanOutcome(flagged=False, detail="no report written", errored=True)
             try:

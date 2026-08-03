@@ -3,3 +3,4 @@ __pycache__/
 .venv/
 corpus/
 results.json
+model-cache/

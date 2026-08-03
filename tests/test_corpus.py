@@ -102,7 +102,7 @@ def test_legacy_layout_hides_payload_after_first_stop():
 def test_origins_are_declared():
     """Cases invented here are the weakest evidence in the set and have to be
     distinguishable from published ones at a glance."""
-    allowed = {"published-cve", "published-technique", "folklore", "picklebench"}
+    allowed = {"published-cve", "published-technique", "folklore", "picklebench", "real-world"}
     for case in cases.ALL_CASES:
         assert case.origin in allowed, f"{case.id} has an undeclared origin"
     for case in cases.MALICIOUS:

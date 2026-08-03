@@ -29,6 +29,26 @@ Also landed: `errors` is surfaced in the summary (previously counted and never
 printed, so a scanner erroring on every case looked identical to one flagging
 nothing), and `--verbose` prints each scanner's own verdict string per case.
 
+**Real benign models** (`picklebench/realmodels.py`, 8 entries, SHA-256 pinned,
+fetched not committed). Chosen for format diversity — zip torch, legacy non-zip
+torch, raw-pickle joblib, zlib joblib, and two sklearn models carrying genuine
+user-defined classes. They paid for themselves immediately:
+
+* Rowan was analysing real sklearn models **by substring match alone**. joblib
+  interleaves raw numpy bytes into the pickle stream, so the walk dies partway
+  through the first pickle (byte 911 of 183761 in `sklearn-iris`) and Rowan
+  discarded the five globals it had already resolved. Fixed upstream; 0 globals
+  resolved before, 4-5 after.
+* fickling rates three ordinary sklearn models as `LIKELY_OVERTLY_MALICIOUS`,
+  and cannot open zip-format torch or zlib joblib at all ("No pickle found").
+  No hand-written benign pickle would have surfaced either.
+
+**Timeouts no longer crash the run.** The first time a scanner actually timed
+out — fickling, on the DUP amplification case — `subprocess.TimeoutExpired`
+propagated out of the runner and killed the whole benchmark. Timeouts are now
+scored as errors, never as detections: a scanner that hangs has not detected
+anything, and crediting it would reward the failure.
+
 Note Python 3.13+ cannot run this benchmark: `modelscan` caps at `<3.13`.
 
 ## Blocking publication
@@ -52,13 +72,11 @@ Note Python 3.13+ cannot run this benchmark: `modelscan` caps at `<3.13`.
   `cases.py` marks origins for exactly this reason, and the README discloses
   the conflict, but the real fix is external contributions. A case that Rowan
   fails is the most valuable contribution anyone can make.
-* **The benign half is 4 synthetic cases.** Detection numbers get all the
-  attention, but the false-positive column is where a bad scanner is actually
-  exposed, and four hand-written pickles is thin. Should pull real benign
-  models: the Rowan repo already hash-pins four `pytorch_model.bin` files in
-  `benchmark/ground_truth/clean_models/manifest.json` and that manifest could
-  be shared or duplicated here. Wants sklearn/joblib and a model with a genuine
-  third-party custom class, neither of which is currently represented anywhere.
+* **The benign half still has only 8 real models.** Better than the 4 synthetic
+  pickles it started with, and it immediately earned its keep (see Done), but 8
+  is not a corpus. All are small; none is a large real-world checkpoint, and
+  there is no TensorFlow, ONNX or GGUF entry at all. Adding real models is the
+  single cheapest way to make the false-positive column mean something.
 * **`picklescan`'s one false positive is a single case.** `benign-stdlib-types`
   trips its `uuid: *` wildcard. That is a real precision difference, but one
   data point should not carry the claim on its own.
@@ -94,7 +112,7 @@ Note Python 3.13+ cannot run this benchmark: `modelscan` caps at `<3.13`.
 * **`ScanOutcome.errored` is collected and never surfaced.** The runner counts
   errors per scanner but the report does not print them, so a scanner erroring
   on every case looks the same as one flagging nothing.
-* **Per-case timeouts.** `TIMEOUT_SECONDS = 120` is per subprocess with no
+* **No overall run timeout.** `TIMEOUT_SECONDS = 120` is per subprocess with no
   overall bound. The `dup-amplification-billion-laughs` case is deliberately
   tuned to degrade visibly rather than hang, but a future resource-exhaustion
   case could stall a whole run.
