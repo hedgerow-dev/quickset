@@ -41,9 +41,25 @@ scanner        detection        false positives    errors
 --------------------------------------------------------------
 picklescan     12/13 (92%)      1/12 (8%)          -
 modelscan       5/13 (38%)      0/12 (0%)          -
-fickling       11/13 (85%)      7/12 (58%)         6
+modelaudit     13/13 (100%)     9/12 (75%)         -
+fickling       12/13 (92%)      7/12 (58%)         5
 open-rowan     13/13 (100%)     0/12 (0%)          -
 ```
+
+### Scored against externally-authored corpora
+
+This corpus was written here, so its numbers flatter whatever it was written alongside. These were not:
+
+```
+                              picklescan  modelscan  modelaudit  fickling  open-rowan
+picklescan tests/data (35)       34 (97%)   24 (69%)      not run  28 (80%)   34 (97%)
+PickleCloak exp_*.pkl (57)       27 (47%)    0 ( 0%)      not run  57 (100%)  45 (79%)
+PickleCloak AEG chains (97)      41 (42%)    0 ( 0%)      not run  97 (100%)  75 (77%)
+```
+
+**Neither of those external sets has a benign half**, so a scanner that flags every file scores 100% on both. fickling does approximately that: ShadowPickle measured it at a **94.5% false-positive rate on 3000 benign models**, and its 58% here is the same behaviour seen from the other side. Read those 100%s as "flags everything", not as detection.
+
+picklescan's own corpus is its own test suite, so its 97% there means little; the informative columns are everyone else's.
 
 The benign half is 8 real hash-pinned HuggingFace models plus 4 hand-written pickles. Fetch the real ones first. Without them the false-positive column is measured against synthetic files only, which is much weaker evidence:
 

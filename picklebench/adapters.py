@@ -19,6 +19,7 @@ A missing scanner is skipped, never failed. Nobody has all of these installed.
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import tempfile
 import subprocess
@@ -53,7 +54,7 @@ class Adapter:
     def scan(self, path: Path) -> ScanOutcome:  # pragma: no cover - overridden
         raise NotImplementedError
 
-    def _run(self, *args: str) -> subprocess.CompletedProcess:
+    def _run(self, *args: str, env: dict[str, str] | None = None) -> subprocess.CompletedProcess:
         """Run a scanner, converting a timeout into a result instead of an
         exception.
 
@@ -68,6 +69,9 @@ class Adapter:
         as a detection: a scanner that hangs has not detected anything, and
         crediting it would reward the failure.
         """
+        child_env = None
+        if env:
+            child_env = {**os.environ, **env}
         try:
             return subprocess.run(
                 args,
@@ -75,6 +79,7 @@ class Adapter:
                 text=True,
                 timeout=TIMEOUT_SECONDS,
                 check=False,
+                env=child_env,
             )
         except subprocess.TimeoutExpired:
             return subprocess.CompletedProcess(
@@ -203,6 +208,57 @@ class FicklingAdapter(Adapter):
         return ScanOutcome(flagged=proc.returncode != 0, detail=f"exit {proc.returncode}")
 
 
+class ModelAuditAdapter(Adapter):
+    """Promptfoo's ModelAudit.
+
+    Three behaviours worth knowing, all observed rather than read off the docs:
+
+    - Telemetry blocks every invocation on a network call, turning a 0.026s
+      scan into ~11s wall time. `PROMPTFOO_DISABLE_TELEMETRY=1` removes it.
+      This is per file, so on a benchmark it dominates everything else.
+    - `--output` writes the JSON to a file but reverts *stdout* to the human
+      report, so the file flag is the wrong way round from every other tool
+      here. stdout is pure JSON already.
+    - Top-level `"success": true` means "the scan ran", not "the file is
+      clean". It is true for a malicious file and for a nonexistent path.
+    """
+
+    def __init__(self) -> None:
+        object.__setattr__(self, "name", "modelaudit")
+        object.__setattr__(self, "license", "MIT")
+        object.__setattr__(self, "executable", "modelaudit")
+
+    def scan(self, path: Path) -> ScanOutcome:
+        proc = self._run(
+            self.executable, "scan", "--format", "json", str(path),
+            env={"PROMPTFOO_DISABLE_TELEMETRY": "1", "NO_ANALYTICS": "1"},
+        )
+        if proc.returncode == TIMED_OUT_RETURNCODE:
+            return ScanOutcome(flagged=False, detail="timed out", errored=True)
+        try:
+            report = json.loads(proc.stdout)
+        except (json.JSONDecodeError, ValueError):
+            return ScanOutcome(flagged=False, detail="unparseable report", errored=True)
+
+        # An empty `scanner_names` means no scanner recognised the file. That
+        # is "not scanned", not "clean", and scoring it as a true negative
+        # would silently credit the tool for files it never looked at.
+        if not report.get("scanner_names"):
+            return ScanOutcome(flagged=False, detail="no scanner matched", errored=True)
+
+        issues = report.get("issues", [])
+        actionable = [i for i in issues if i.get("severity") in ("warning", "critical")]
+        worst = next(
+            (s for s in ("critical", "warning", "info", "debug")
+             if any(i.get("severity") == s for i in issues)),
+            "",
+        )
+        return ScanOutcome(
+            flagged=bool(actionable),
+            detail=f"{len(issues)} issue(s){f', worst {worst}' if worst else ''}",
+        )
+
+
 class OpenRowanAdapter(Adapter):
     """Included so this benchmark can be run against Rowan like any other
     entrant. It gets no special treatment and no import-level access: same
@@ -272,6 +328,7 @@ def all_adapters() -> list[Adapter]:
     return [
         PicklescanAdapter(),
         ModelscanAdapter(),
+        ModelAuditAdapter(),
         FicklingAdapter(),
         OpenRowanAdapter(),
     ]
