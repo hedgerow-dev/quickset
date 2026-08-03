@@ -51,6 +51,31 @@ anything, and crediting it would reward the failure.
 
 Note Python 3.13+ cannot run this benchmark: `modelscan` caps at `<3.13`.
 
+## Premise and prior art
+
+* **The project was built on an unchecked claim.** The README asserted that no
+  shared corpus existed. It does: PickleBench (ShadowPickle, arXiv:2607.17503),
+  PickleBall (arXiv:2508.15987), SafePickle (727 labelled HuggingFace files),
+  MalHug (91 malicious models), PickleCloak (57), and picklescan's own public
+  46-file labelled `tests/data`. The README now leads with this. The open
+  question it raises is whether this project should exist separately at all,
+  or whether its distinctive parts (inert generated payloads, a real benign
+  half, parser-coverage as its own axis) are better contributed upstream.
+* **The name is taken.** "PickleBench" is the ShadowPickle paper's benchmark,
+  same domain, published first. Rename needed before this goes anywhere public.
+* **Published results disagree with these.** ShadowPickle reports fickling at
+  100% and picklescan/ModelScan at 0% against its attacks; this corpus ranks
+  them close to the reverse. Worth understanding *why* before either number is
+  quoted: it is probably corpus composition, but "probably" is not good enough
+  to publish on.
+* **ModelAudit (Promptfoo) has no adapter.** A fifth scanner, missed entirely
+  because the entrant list was assembled from memory rather than from a search.
+* **picklescan's `tests/data` is externally authored and directly usable**,
+  which is the cheapest available fix for this project's authorship bias. It
+  ships real (non-inert) payloads, so importing it would mean either relaxing
+  the no-malicious-files rule or fetching to a gitignored cache the way
+  `realmodels.py` already does. That is a deliberate decision, not a detail.
+
 ## Blocking publication
 
 * **No licence.** `pyproject.toml` has no `license` field and there is no

@@ -1,8 +1,32 @@
 # picklebench
 
-A neutral benchmark for ML model-file scanners. Detection and false positives, scored separately, on a corpus that generates itself.
+A benchmark for ML model-file scanners. Detection and false positives, scored separately, on a corpus that generates itself.
 
-Model-file scanners (picklescan, ModelScan, fickling, Rowan, and the scanning that hosting platforms run server-side) all claim to catch malicious pickles. There is no shared corpus to check that against, so every claim is self-reported against a private test set. This is an attempt at a public one.
+> **Naming conflict, unresolved.** "PickleBench" is already the name of the benchmark published with [ShadowPickle](https://arxiv.org/html/2607.17503v1) (arXiv:2607.17503), in this exact domain. This project needs renaming.
+
+## Prior art
+
+An earlier version of this README claimed there was no shared corpus for this, and that this project was "an attempt at a public one". **That was wrong, and it was asserted without checking.** There is substantial prior work:
+
+| Corpus | Size / scope |
+|---|---|
+| [PickleBench](https://arxiv.org/html/2607.17503v1) (ShadowPickle) | Dynamic; injects attacks into arbitrary benign models, evaluates 5 scanners |
+| [PickleBall](https://arxiv.org/pdf/2508.15987) | Compares PickleBall, ModelScan, ModelTRACER, PyTorch weights-only |
+| [SafePickle](https://arxiv.org/html/2602.19818v1) | 727 labelled pickle files from HuggingFace |
+| MalHug | 91 malicious HuggingFace models |
+| PickleCloak | 57 malicious models |
+| [picklescan `tests/data`](https://github.com/mmaitre314/picklescan/tree/main/tests/data) | 46 files, 35 malicious / 4 benign, public and labelled by filename |
+
+Those results also disagree with the ones below in ways worth knowing before citing either. ShadowPickle reports **fickling at 100%** and **picklescan and ModelScan at 0%** against its attacks; this corpus ranks them close to the other way around. Different corpora measure different things, which is exactly why one benchmark's numbers should not be read as a scanner's general quality.
+
+So this is not filling a vacuum. What it appears to do that the above do not:
+
+- **Ships no malicious files.** MalHug and PickleCloak distribute real malicious models. Here payloads are generated at run time and are inert by construction.
+- **Scores false positives against real benign models**, not detection alone. PickleBall's benign half is 2 models.
+- **Treats parser coverage as a separate axis** from gadget recognition: whether a scanner reads the file at all (legacy multi-pickle layout, `.bin` dispatch, `EXT1` stack desync, `DUP` amplification). Four such bugs in Rowan were found this way, and none are about which callables are on a list.
+- **Runs the shipped CLIs at shipped defaults**, so it measures what a user actually gets.
+
+Whether that justifies a separate project rather than contributing cases upstream to one of the above is open, and not something this README should pretend to have settled.
 
 ## What it does
 
@@ -77,7 +101,7 @@ The same class of error bites at the build level: an editable install pointed at
 
 ## Status
 
-Early. The corpus is small and pickle-focused. Worth adding: Keras Lambda layers, ONNX custom operators, GGUF chat-template injection, and gadget classes from the ShadowPickle work (arXiv:2607.17503) that reports 63% evasion across ten scanners.
+Early, and its premise needs revisiting in light of the prior art above. The corpus is small and pickle-focused. Worth adding: Keras Lambda layers, ONNX custom operators, GGUF chat-template injection, and the ShadowPickle attack classes. [ModelAudit](https://www.promptfoo.dev/blog/open-sourcing-modelaudit/) (Promptfoo) is a fifth scanner with no adapter here yet.
 
 ## Licence
 
