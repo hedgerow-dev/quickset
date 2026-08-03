@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import json
 import tempfile
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
@@ -37,7 +38,7 @@ class Score:
         return self.false_positives / self.total_benign if self.total_benign else 0.0
 
 
-def run(corpus_dir: Path) -> tuple[list[Score], dict]:
+def run(corpus_dir: Path, jobs: int = 1) -> tuple[list[Score], dict]:
     written = case_module.write_corpus(corpus_dir)
     adapters = [a for a in all_adapters() if a.available()]
 
@@ -49,12 +50,23 @@ def run(corpus_dir: Path) -> tuple[list[Score], dict]:
 
     per_case: dict[str, dict[str, dict]] = {}
     scores: list[Score] = []
+    items = list(written.items())
 
     for adapter in adapters:
+        # Every scanner runs as its own subprocess and each case lives in its
+        # own directory, so nothing is shared between scans and they can go in
+        # parallel. This matters once the benign corpus is a few hundred real
+        # models: the slowest scanner takes several seconds per file, and
+        # serially that is most of an hour.
+        if jobs > 1:
+            with ThreadPoolExecutor(max_workers=jobs) as pool:
+                outcomes = list(pool.map(lambda kv: adapter.scan(Path(kv[0])), items))
+        else:
+            outcomes = [adapter.scan(Path(p)) for p, _ in items]
+
         detected = fp = errors = 0
         n_mal = n_ben = 0
-        for path_str, case in written.items():
-            outcome = adapter.scan(Path(path_str))
+        for (_path, case), outcome in zip(items, outcomes):
             per_case.setdefault(case.id, {})[adapter.name] = {
                 "flagged": outcome.flagged,
                 "detail": outcome.detail,
@@ -158,6 +170,10 @@ def _print_verdicts(per_case: dict, names: list[str]) -> None:
     print()
     print("VERDICTS (each scanner's own words, unnormalized)")
     for case in case_module.all_cases():
+        if "real-model" in case.tags and not any(
+            v.get("flagged") for v in per_case.get(case.id, {}).values()
+        ):
+            continue
         print()
         print(f"  {case.id}  [{'malicious' if case.malicious else 'benign'}]")
         for name in names:
@@ -171,16 +187,32 @@ def _print_verdicts(per_case: dict, names: list[str]) -> None:
 
 def _print_report(scores: list[Score], per_case: dict, adapters: list[Adapter]) -> None:
     names = [s.scanner for s in scores]
-    width = max([len(c.id) for c in case_module.all_cases()] + [12])
+    all_cases = case_module.all_cases()
+
+    # The real-model half of the benign corpus is several hundred files. Every
+    # one of them printed is a wall of dots nobody reads, and the rows that
+    # matter -- the false positives -- get lost in it. So a real model is
+    # listed only when some scanner flagged it; the rest are counted.
+    def is_noise(case) -> bool:
+        if "real-model" not in case.tags:
+            return False
+        return not any(v.get("flagged") for v in per_case.get(case.id, {}).values())
+
+    shown = [c for c in all_cases if not is_noise(c)]
+    hidden = len(all_cases) - len(shown)
+    width = max([len(c.id) for c in shown] + [12])
 
     print()
     print("PER-CASE RESULTS  (o = flagged, . = not flagged)")
+    if hidden:
+        print(f"{hidden} real models no scanner flagged are omitted; "
+              "every flagged one is listed.")
     print()
     header = "case".ljust(width) + "  truth   " + "  ".join(n[:11].ljust(11) for n in names)
     print(header)
     print("-" * len(header))
 
-    for case in case_module.all_cases():
+    for case in shown:
         truth = "MAL " if case.malicious else "ben "
         row = case.id.ljust(width) + "  " + truth + "    "
         cells = []
@@ -240,14 +272,19 @@ def main() -> int:
         "--no-external", action="store_true",
         help="Skip externally-authored corpora even when they are fetched.",
     )
+    parser.add_argument(
+        "--jobs", type=int, default=1,
+        help="Scan this many files in parallel per scanner. Worth raising once "
+             "the real-model corpus is fetched.",
+    )
     args = parser.parse_args()
 
     if args.keep_corpus:
-        scores, per_case = run(args.keep_corpus)
+        scores, per_case = run(args.keep_corpus, jobs=args.jobs)
         corpus_note = str(args.keep_corpus)
     else:
         with tempfile.TemporaryDirectory(prefix="quickset-") as tmp:
-            scores, per_case = run(Path(tmp))
+            scores, per_case = run(Path(tmp), jobs=args.jobs)
         corpus_note = "(temporary, discarded)"
 
     adapters = [a for a in all_adapters() if a.available()]

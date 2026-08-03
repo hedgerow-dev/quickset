@@ -5,3 +5,4 @@ corpus/
 results.json
 model-cache/
 external-cache/
+scripts/.cache/
