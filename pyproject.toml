@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "picklebench"
+version = "0.1.0"
+description = "A neutral benchmark for ML model-file scanners: detection and false positives, scored separately."
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+# Scanners are invoked as subprocesses, never imported. Installing them is
+# optional and each is skipped when absent.
+scanners = ["picklescan", "modelscan"]
+dev = ["pytest"]
+
+[project.scripts]
+picklebench = "picklebench.run:main"
+
+[tool.setuptools.packages.find]
+include = ["picklebench*"]
