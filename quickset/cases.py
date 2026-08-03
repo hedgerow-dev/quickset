@@ -29,7 +29,10 @@ encode one scanner's detection logic as though it were ground truth.
 
 from __future__ import annotations
 
+import io
+import json
 import pickle
+import zipfile
 from dataclasses import dataclass, field
 from typing import Callable
 
@@ -75,6 +78,20 @@ def legacy_torch_layout(payload: bytes) -> bytes:
         + payload
         + b"\x00\x01\x02RAW-TENSOR-STORAGE-PLACEHOLDER\xff"
     )
+
+
+def _skops_archive(schema: dict) -> bytes:
+    """A .skops file: zip of schema.json (+ .npy members for real arrays).
+
+    skops schemas are inert by construction: the loader resolves and
+    instantiates the types the schema names, but nothing in a schema passes
+    an attacker argument to anything, so a malicious schema is a weaponised
+    *type reference*, never a ready-to-run command.
+    """
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as zf:
+        zf.writestr("schema.json", json.dumps(schema))
+    return buf.getvalue()
 
 
 @dataclass(frozen=True)
@@ -350,6 +367,50 @@ MALICIOUS: tuple[Case, ...] = (
         tags=("parser-coverage", "extension-dispatch"),
         build=lambda: _reduce("os", "system", _tuple1(_su(f"echo {MARKER}"))),
     ),
+    Case(
+        id="skops-denied-type-reference",
+        filename="model.skops",
+        malicious=True,
+        technique="skops schema whose ObjectNode names posix.system. skops "
+                  "resolves every __module__/__class__ pair it is asked to "
+                  "trust, so a type reference is the format's code-execution "
+                  "surface -- the same semantics as a pickle GLOBAL.",
+        origin="quickset",
+        reference="Format contract from skops.io's own loader: load() with "
+                  "trusted= instantiates whatever the schema names.",
+        notes="Inert like every skops schema: nothing passes an argument, "
+              "the danger is the resolved type itself.",
+        tags=("skops", "type-reference"),
+        build=lambda: _skops_archive({
+            "__class__": "system", "__module__": "posix",
+            "__loader__": "ObjectNode", "content": {},
+        }),
+    ),
+    Case(
+        id="skops-methodnode-inconsistent",
+        filename="model.skops",
+        malicious=True,
+        technique="MethodNode declaring a benign sklearn type while binding "
+                  "an attacker type. skops < 0.12.0 trusted the outer "
+                  "__module__/__class__ and called the inner object's method.",
+        origin="published-cve",
+        reference="CVE-2025-54413 (fixed in skops 0.12.0).",
+        notes="Both types are off every deny list on purpose: only the "
+              "structural inconsistency between the declared and bound type "
+              "is detectable, so this scores that mechanism in isolation.",
+        tags=("skops", "structural"),
+        build=lambda: _skops_archive({
+            "__class__": "Pipeline", "__module__": "sklearn.pipeline",
+            "__loader__": "MethodNode",
+            "content": {
+                "obj": {
+                    "__class__": "Evil", "__module__": "__main__",
+                    "__loader__": "ObjectNode", "content": {},
+                },
+                "func": "run",
+            },
+        }),
+    ),
 )
 
 
@@ -475,8 +536,11 @@ def real_model_cases() -> tuple[Case, ...]:
             technique=f"Real {model.fmt} model from {model.repo}, SHA-256 pinned.",
             origin="real-world",
             reference=f"https://huggingface.co/{model.repo}",
-            notes=model.note,
-            tags=("real-model", "false-positive-bait"),
+            notes=model.note or (
+                f"{model.size} bytes, {model.library or 'no declared library'}, "
+                f"HuggingFace scan rollup {model.hf_scan or 'unrecorded'}."
+            ),
+            tags=("real-model", "false-positive-bait", f"fmt:{model.fmt}"),
             build=lambda m=model: realmodels.cached_path(m).read_bytes(),
         )
         for model in realmodels.cached_models()
