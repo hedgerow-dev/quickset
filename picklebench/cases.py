@@ -225,6 +225,36 @@ MALICIOUS: tuple[Case, ...] = (
         ),
     ),
     Case(
+        id="stack-desync-ext1-pop",
+        filename="stack_desync.pkl",
+        malicious=True,
+        technique="EXT1 followed by POP. The real VM pushes the extension-"
+                  "registry object and pops it again, leaving the stack "
+                  "unchanged. A scanner that simulates the stack but does not "
+                  "model EXT1's push pops the callable instead, desyncing "
+                  "every opcode that follows.",
+        origin="picklebench",
+        reference="Found by auditing a scanner's opcode coverage against "
+                  "pickletools' 68-opcode table; reported against open-rowan, "
+                  "which lost the resolved call before 2026-08. The same "
+                  "three-byte shape applies to EXT2/EXT4, PERSID/BINPERSID "
+                  "and protocol-5 NEXT_BUFFER.",
+        notes="Scores stack-simulation fidelity, not callable recognition. "
+              "Scanners that only pattern-match imports are unaffected; ones "
+              "that reason about call arguments are exactly the ones at risk, "
+              "so this case gets more relevant as scanners get smarter.",
+        tags=("parser-coverage", "stack-desync"),
+        build=lambda: (
+            b"\x80\x04"
+            + _su("pip") + _su("main") + b"\x93"
+            + b"\x82\x01"   # EXT1, code 1 -- pushes one value
+            + b"0"          # POP -- real VM removes it; a naive walk removes the callable
+            + _su(INERT_URL)
+            + b"\x85"
+            + b"R."
+        ),
+    ),
+    Case(
         id="legacy-layout-second-pickle",
         filename="legacy_layout.pt",
         malicious=True,
