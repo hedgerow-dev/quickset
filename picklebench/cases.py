@@ -286,6 +286,37 @@ MALICIOUS: tuple[Case, ...] = (
         ),
     ),
     Case(
+        id="getattr-through-opaque-argument",
+        filename="getattr_globals_eval.pkl",
+        malicious=True,
+        technique="getattr(globals(), 'eval'). The first argument is the "
+                  "result of another call and so is opaque to any static "
+                  "walk, which is what makes this harder than a plain "
+                  "attrgetter('eval'): a scanner that requires every argument "
+                  "to resolve before it will look at any of them discards the "
+                  "'eval' literal entirely.",
+        origin="published-technique",
+        reference="Marco Slaviero, 'Sour Pickles', BlackHat USA 2011 -- the "
+                  "memo-register chaining of getattr/apply/globals. Reported "
+                  "against open-rowan as DEF-45.",
+        notes="Protocol 0, hand-assembled. The single-argument variant "
+              "attrgetter('eval') is a much easier case and most scanners "
+              "catch it; this one specifically scores whether partial "
+              "argument resolution is handled.",
+        tags=("deny-list-bypass", "dynamic-resolution", "partial-resolution"),
+        build=lambda: (
+            b"c__builtin__\ngetattr\n"
+            b"("                          # MARK for getattr's arguments
+            b"c__builtin__\nglobals\n"
+            b"(t"                         # MARK + TUPLE -> ()
+            b"R"                          # globals() -> opaque
+            b"S'eval'\n"
+            b"t"                          # TUPLE -> (<opaque>, 'eval')
+            b"R"                          # getattr(<opaque>, 'eval')
+            b"."
+        ),
+    ),
+    Case(
         id="legacy-layout-second-pickle",
         filename="legacy_layout.pt",
         malicious=True,
