@@ -46,13 +46,19 @@ class TestLabelling:
         "bad_pytorch.pt",          # a PNG with a .pt extension
         "not_a_pickle.bin",        # not a pickle at all
         "benign_password_protected.zip",
-        "pytorch_magic_bypass.pt",
     ])
     def test_unlabelled_files_are_excluded_not_guessed(self, name):
         """These are neither malicious nor a clean model. Scoring them either
         way would move every scanner's number for no reason connected to
         detection quality."""
         assert external.label_of(self._corpus("picklescan-tests"), name) is None
+
+    def test_author_asserted_malicious_wins_over_filename(self):
+        """picklescan's own test suite asserts pytorch_magic_bypass.pt yields
+        __builtin__.eval and posix.system (both Dangerous). The corpus
+        author's label wins over the filename convention."""
+        assert external.label_of(
+            self._corpus("picklescan-tests"), "pytorch_magic_bypass.pt") is True
 
     def test_all_malicious_corpus_labels_everything_malicious(self):
         corpus = self._corpus("picklecloak-exploits")

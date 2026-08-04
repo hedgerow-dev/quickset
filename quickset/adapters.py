@@ -113,9 +113,16 @@ class PicklescanAdapter(Adapter):
         # lines for "Infected files:", "Suspicious globals:" and "Dangerous
         # globals:". "Suspicious" is picklescan's own unknown bucket: the
         # strict threshold counts dangerous only.
+        #
+        # A parse failure prints "could not parse as pickle" (or similar)
+        # alongside "Infected files: 0", which reads exactly like a clean
+        # verdict. Measured on the benign corpus: 95 files. A file picklescan
+        # could not read is not a file it cleared, so it is an error here,
+        # same as modelaudit's "no scanner matched".
         dangerous = "FOUND" in text
         infected = 0
         suspicious = 0
+        parse_failed = False
         for line in text.splitlines():
             stripped = line.strip()
             if stripped.startswith("Infected files:"):
@@ -124,6 +131,16 @@ class PicklescanAdapter(Adapter):
             elif stripped.startswith("Suspicious globals:"):
                 with_digits = stripped.split(":", 1)[1].strip()
                 suspicious = int(with_digits) if with_digits.isdigit() else 0
+            elif "could not parse as pickle" in stripped or stripped.startswith(
+                "ERROR: parsing"
+            ):
+                parse_failed = True
+        if parse_failed:
+            return ScanOutcome(
+                flagged=False,
+                detail=_first_signal(text, "parse") or "parse failure",
+                errored=True,
+            )
         flagged = dangerous or infected > 0
         return ScanOutcome(
             flagged=flagged,
@@ -169,15 +186,30 @@ class ModelscanAdapter(Adapter):
             return ScanOutcome(flagged=False, detail="unparseable report", errored=True)
 
         summary = report.get("summary", {})
+        # A scan that read zero files produced no verdict. modelscan's own
+        # `errors` array records why (measured on the benign corpus: 130
+        # files, nearly all a removed private numpy API in its joblib path).
+        # Counting those as clean credits it for files it never read.
+        scanned = (summary.get("scanned") or {}).get("total_scanned")
+        errors = report.get("errors") or []
+        if scanned == 0 or errors:
+            first = str(errors[0].get("description", ""))[:100] if errors else "no files scanned"
+            return ScanOutcome(flagged=False, detail=first, errored=True)
+
         issues = summary.get("total_issues", 0)
         by_severity = summary.get("total_issues_by_severity", {})
         worst = next(
             (s for s in ("CRITICAL", "HIGH", "MEDIUM", "LOW") if by_severity.get(s)),
             "",
         )
+        # Tier map: modelscan documents no unknown bucket, so strict is
+        # CRITICAL/HIGH and lenient is any issue (its CLI gates on all of
+        # them). MEDIUM/LOW are its weakest, least-actionable tiers.
+        strong = bool(by_severity.get("CRITICAL") or by_severity.get("HIGH"))
         return ScanOutcome(
-            flagged=bool(issues),
+            flagged=strong,
             detail=f"{issues} issue(s){f', worst {worst}' if worst else ''}",
+            flagged_lenient=bool(issues),
         )
 
 
@@ -195,6 +227,12 @@ class FicklingAdapter(Adapter):
         # above LIKELY_SAFE -- but SUSPICIOUS is its unknown bucket, the tier
         # it declines to call unsafe. Strict is LIKELY_UNSAFE and above;
         # lenient is the shipped CLI default.
+        #
+        # --json-output on a multi-pickle file (torch legacy layout, 27 files
+        # in the benign corpus) writes one JSON object PER EMBEDDED PICKLE,
+        # concatenated, which is not valid JSON. Decode the stream and take
+        # the worst verdict across the embedded pickles; only fall back to the
+        # exit code when nothing decodes at all.
         with tempfile.TemporaryDirectory() as tmp:
             out = Path(tmp) / "fickling.json"
             proc = self._run(
@@ -203,7 +241,23 @@ class FicklingAdapter(Adapter):
             severity = ""
             if out.exists():
                 try:
-                    severity = str(json.loads(out.read_text(encoding="utf-8")).get("severity", ""))
+                    raw = out.read_text(encoding="utf-8")
+                    decoder = json.JSONDecoder()
+                    idx = 0
+                    verdicts: list[str] = []
+                    while idx < len(raw):
+                        while idx < len(raw) and raw[idx].isspace():
+                            idx += 1
+                        if idx >= len(raw):
+                            break
+                        obj, end = decoder.raw_decode(raw, idx)
+                        verdicts.append(str(obj.get("severity", "")))
+                        idx = end
+                    if verdicts:
+                        severity = max(
+                            verdicts,
+                            key=lambda s: _FICKLING_SEVERITY_ORDER.get(s, -1),
+                        )
                 except (json.JSONDecodeError, ValueError, OSError):
                     severity = ""
 
@@ -348,6 +402,14 @@ class OpenRowanAdapter(Adapter):
 
 
 _SEVERITY_ORDER = ["info", "low", "medium", "high", "critical"]
+
+_FICKLING_SEVERITY_ORDER = {
+    "LIKELY_SAFE": 0,
+    "SUSPICIOUS": 2,
+    "LIKELY_UNSAFE": 3,
+    "LIKELY_OVERTLY_MALICIOUS": 4,
+    "OVERTLY_MALICIOUS": 5,
+}
 
 
 def _first_line(text: str) -> str:

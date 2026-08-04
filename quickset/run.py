@@ -34,6 +34,19 @@ class Score:
     false_positives_lenient: int = 0
 
     @property
+    def covered(self) -> int:
+        """Files the scanner returned any verdict on at all. Errored files
+        (parse failures, crashes, zero-file scans) are not covered: a tool
+        that never read the file has no verdict to its name, and counting
+        those as clean is how a broken scanner wins a benchmark."""
+        return self.total_malicious + self.total_benign - self.errors
+
+    @property
+    def coverage(self) -> float:
+        total = self.total_malicious + self.total_benign
+        return self.covered / total if total else 0.0
+
+    @property
     def recall(self) -> float:
         return self.detected / self.total_malicious if self.total_malicious else 0.0
 
@@ -81,6 +94,12 @@ def run(corpus_dir: Path, jobs: int = 1) -> tuple[list[Score], dict]:
             }
             if outcome.errored:
                 errors += 1
+                # Errored files are excluded from both numerators and
+                # denominators; the coverage column carries that cost.
+                # Counting them as clean would credit a tool for files it
+                # never read, and counting them as misses would double-charge
+                # what coverage already says.
+                continue
             if case.malicious:
                 n_mal += 1
                 detected += bool(outcome.flagged)
@@ -106,9 +125,9 @@ def run_external(adapters: list[Adapter]) -> list[tuple[object, dict[str, tuple[
         if not external_module.is_fetched(corpus):
             continue
         files = sorted(external_module.corpus_dir(corpus).iterdir())
-        tally: dict[str, tuple[int, int, int, int, int, int]] = {}
+        tally: dict[str, tuple[int, int, int, int, int, int, int]] = {}
         for adapter in adapters:
-            det = mal = fp = ben = det_l = fp_l = 0
+            det = mal = fp = ben = det_l = fp_l = errors = 0
             for f in files:
                 label = external_module.label_of(corpus, f.name)
                 if label is None:
@@ -119,6 +138,9 @@ def run_external(adapters: list[Adapter]) -> list[tuple[object, dict[str, tuple[
                     target = Path(tmp) / f.name
                     target.write_bytes(f.read_bytes())
                     outcome = adapter.scan(target)
+                if outcome.errored:
+                    errors += 1
+                    continue
                 lenient = (
                     outcome.flagged if outcome.flagged_lenient is None
                     else outcome.flagged_lenient
@@ -131,7 +153,7 @@ def run_external(adapters: list[Adapter]) -> list[tuple[object, dict[str, tuple[
                     ben += 1
                     fp += bool(outcome.flagged)
                     fp_l += bool(lenient)
-            tally[adapter.name] = (det, mal, fp, ben, det_l, fp_l)
+            tally[adapter.name] = (det, mal, fp, ben, det_l, fp_l, errors)
         results.append((corpus, tally))
     return results
 
@@ -155,10 +177,12 @@ def _print_external(results, names: list[str]) -> None:
             print(f"    {line}")
         print()
         for name in names:
-            det, mal, fp, ben, det_l, fp_l = tally.get(name, (0, 0, 0, 0, 0, 0))
+            det, mal, fp, ben, det_l, fp_l, errors = tally.get(name, (0, 0, 0, 0, 0, 0, 0))
+            total = mal + ben + errors
             d = f"{det}/{mal} ({det / mal:.0%})" if mal else "-"
             f_ = f"{fp}/{ben} ({fp / ben:.0%})" if ben else "no benign half"
-            print(f"      {name:20} detection {d:14} false positives {f_}")
+            cov = f"({total - errors}/{total} covered)" if total else ""
+            print(f"      {name:20} detection {d:14} false positives {f_} {cov}")
             if (det_l, fp_l) != (det, fp):
                 d_l = f"{det_l}/{mal} ({det_l / mal:.0%})" if mal else "-"
                 f_l = f"{fp_l}/{ben} ({fp_l / ben:.0%})" if ben else "no benign half"
@@ -251,15 +275,18 @@ def _print_report(scores: list[Score], per_case: dict, adapters: list[Adapter]) 
     print()
     print("SUMMARY")
     print()
-    print("scanner".ljust(22), "detection".ljust(16), "false positives".ljust(18), "errors")
-    print("-" * 62)
+    print("scanner".ljust(22), "detection".ljust(16), "false positives".ljust(18),
+          "coverage".ljust(16), "errors")
+    print("-" * 76)
     for score in scores:
         det = f"{score.detected}/{score.total_malicious} ({score.recall:.0%})"
         fps = f"{score.false_positives}/{score.total_benign} ({score.fp_rate:.0%})"
+        total = score.total_malicious + score.total_benign
+        cov = f"{score.covered}/{total} ({score.coverage:.0%})"
         # Errors were previously counted and never printed, so a scanner
         # erroring on every case looked identical to one flagging nothing.
         err = str(score.errors) if score.errors else "-"
-        print(score.scanner.ljust(22), det.ljust(16), fps.ljust(18), err)
+        print(score.scanner.ljust(22), det.ljust(16), fps.ljust(18), cov.ljust(16), err)
         if (score.detected_lenient, score.false_positives_lenient) != (
             score.detected, score.false_positives,
         ):
@@ -285,6 +312,11 @@ def _print_report(scores: list[Score], per_case: dict, adapters: list[Adapter]) 
     print("at its top tier while counting another's unknown tier is the")
     print("specific unfairness this table exists to avoid. Run with --verbose")
     print("to see each scanner's own verdict string per case.")
+    print()
+    print("Coverage is the share of files the scanner returned any verdict")
+    print("on. Errored files (parse failures, crashes, zero-file scans) are")
+    print("excluded from both numerators and denominators alike: a tool that")
+    print("never read the file has no verdict to its name.")
     print()
 
 

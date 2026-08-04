@@ -42,6 +42,9 @@ class ExternalCorpus:
     note: str = ""
     # Files whose label the corpus author does not state. Scored as neither.
     unlabelled: frozenset[str] = frozenset()
+    # Files the author's tests assert malicious despite a name outside the
+    # malicious* convention. Evidence over convention.
+    asserted_malicious: frozenset[str] = frozenset()
     # When set, every file in the corpus is malicious by construction.
     all_malicious: bool = False
 
@@ -66,9 +69,15 @@ CORPORA: tuple[ExternalCorpus, ...] = (
         unlabelled=frozenset({
             "broken_model.pkl", "bad_pytorch.pt", "not_a_pickle.bin",
             "pytorch_model.bin", "new_pytorch_model.bin",
-            "sys_module_override_sploit.pkl", "pytorch_magic_bypass.pt",
+            "sys_module_override_sploit.pkl",
             "benign_password_protected.zip",
         }),
+        # picklescan's tests/test_scanner.py asserts this file yields two
+        # dangerous globals (__builtin__.eval in the magic pickle, posix.system
+        # in the payload). The author's label wins over the filename
+        # convention; a benchmark contradicting the corpus author is the first
+        # thing a critic finds.
+        asserted_malicious=frozenset({"pytorch_magic_bypass.pt"}),
     ),
     ExternalCorpus(
         id="picklecloak-exploits",
@@ -156,6 +165,8 @@ def label_of(corpus: ExternalCorpus, filename: str) -> bool | None:
     if filename in corpus.unlabelled:
         return None
     if corpus.all_malicious:
+        return True
+    if filename in corpus.asserted_malicious:
         return True
     if filename.startswith("malicious"):
         return True
