@@ -36,15 +36,22 @@ pip install picklescan          # or modelscan, fickling, ...
 python -m quickset.run
 ```
 
+Every scanner is scored at **two thresholds, always paired**: the strict tier (what the tool's own author calls actionable) and, as a `+unknown` row, the tier that includes its unknown bucket (picklescan's `suspicious`, modelaudit's `warning`, fickling's `SUSPICIOUS`, open-rowan's `INFO`). **Coverage** is the share of files the scanner returned any verdict on at all; errored files are excluded from every numerator and denominator. Measured 2026-08-04:
+
 ```
-scanner        detection        false positives    errors
---------------------------------------------------------------
-picklescan     12/13 (92%)      1/12 (8%)          -
-modelscan       5/13 (38%)      0/12 (0%)          -
-modelaudit     13/13 (100%)     9/12 (75%)         -
-fickling       12/13 (92%)      7/12 (58%)         5
-open-rowan     13/13 (100%)     0/12 (0%)          -
+scanner                detection        false positives    coverage
+-------------------------------------------------------------------------
+picklescan             12/15 (80%)      1/198 (1%)         213/234 (91%)
+picklescan +unknown    13/15 (87%)      38/198 (19%)
+modelscan              5/12 (42%)       0/79 (0%)          91/234 (39%)
+modelaudit             13/15 (87%)      13/219 (6%)        234/234 (100%)
+modelaudit +unknown    14/15 (93%)      94/219 (43%)
+fickling               11/11 (100%)     88/90 (98%)        101/234 (43%)
+open-rowan             15/15 (100%)     0/219 (0%)         234/234 (100%)
+open-rowan +unknown    15/15 (100%)     7/219 (3%)
 ```
+
+Read the coverage column first: modelscan silently read zero files on 143 of 234 (mostly a removed private numpy API in its joblib path), fickling produced nothing on 132, and picklescan failed to parse 21. Only modelaudit and open-rowan returned a verdict on everything. A scanner that never read the file has no verdict to its name.
 
 ### Scored against externally-authored corpora
 
@@ -59,17 +66,19 @@ python -m quickset.external --purge   # delete; they are working exploits
 They are gitignored, never committed, and never loaded or unpickled. Ground truth comes from each corpus author's own labelling; a file whose label the author does not state is excluded from scoring rather than assigned one.
 
 ```
-                              picklescan  modelscan  modelaudit  fickling  open-rowan
-picklescan tests/data (35)       34 (97%)   24 (69%)      not run  28 (80%)   34 (97%)
-PickleCloak exp_*.pkl (57)       27 (47%)    0 ( 0%)      not run  57 (100%)  45 (79%)
-PickleCloak AEG chains (97)      41 (42%)    0 ( 0%)      not run  97 (100%)  75 (77%)
+picklescan tests/data (36 malicious):   picklescan 34 (94%) strict / 36 (100%) incl. unknown
+                                        modelscan 24 (83%) | modelaudit 30 (83%) | fickling 29/29 | open-rowan 35 (97%)
+PickleCloak exploits (57):              picklescan 27 (47%) strict / 57 (100%) incl. unknown
+                                        modelscan 0 | modelaudit 51 (89%) | fickling 57 (100%) | open-rowan 49 (86%)
+PickleCloak AEG chains (97):            picklescan 41 (42%) strict / 97 (100%) incl. unknown
+                                        modelscan 0 | modelaudit 69 (71%) | fickling 97 (100%) | open-rowan 91 (94%)
 ```
 
-**Neither of those external sets has a benign half**, so a scanner that flags every file scores 100% on both. fickling does approximately that: ShadowPickle measured it at a **94.5% false-positive rate on 3000 benign models**, and its 58% here is the same behaviour seen from the other side. Read those 100%s as "flags everything", not as detection.
+**Neither PickleCloak set has a benign half**, so a scanner that flags every file scores 100% on both. The unknown-tier rows make that visible directly: picklescan and open-rowan both *see* 100% of PickleCloak files; the entire gap between 47%/42% and 86%/94% is which tool promotes what it saw to actionable. fickling's 100% at its actionable tier costs a 40% false-positive rate on real models: ShadowPickle measured it at 94.5% on 3000 benign models, and its 40% here is the same behaviour seen from the other side. Read those 100%s as "flags nearly everything", not as detection.
 
-picklescan's own corpus is its own test suite, so its 97% there means little; the informative columns are everyone else's.
+picklescan's own corpus is its own test suite, so its numbers there mean little; the informative columns are everyone else's.
 
-The benign half is 8 real hash-pinned HuggingFace models plus 4 hand-written pickles. Fetch the real ones first. Without them the false-positive column is measured against synthetic files only, which is much weaker evidence:
+The benign half is **215 real hash-pinned HuggingFace models** across 14 formats, 64 publishers and vintages 2020-2026, plus 4 hand-written pickles. The corpus is built by `scripts/build_benign_manifest.py` (HF API selection, security-rollup filter, magic-byte classification, SHA-256 pinning), and the cache is gitignored and never committed:
 
 ```bash
 python -m quickset.realmodels
