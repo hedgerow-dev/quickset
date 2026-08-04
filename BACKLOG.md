@@ -121,16 +121,18 @@ Note Python 3.13+ cannot run this benchmark: `modelscan` caps at `<3.13`.
 
 ## Coverage
 
-* **Severity is still not scored, only flagged/not-flagged.** Now the most
-  important open item, because the four-way run made the cost visible.
-  fickling's 58% false-positive rate is not really comparable to picklescan's
-  8%: it grades on four levels, treats anything above `LIKELY_SAFE` as unsafe,
-  and is built to be read by a human rather than to gate a pipeline. Reducing
-  that to one bit flatters gate-shaped tools and penalises analysis-shaped
-  ones. `--verbose` is the current escape hatch (raw verdicts, unnormalized)
-  but the summary table still implies a comparison it cannot support. Any fix
-  must avoid inventing a cross-tool severity scale, which is the thing that
-  would make this benchmark start lying.
+* **Done: both severity thresholds are now scored** (2026-08-04). Every
+  adapter reports the strict tier (what the tool's author calls actionable)
+  and the unknown tier (picklescan's suspicious, modelaudit's warning,
+  fickling's SUSPICIOUS, open-rowan's INFO), printed as a separate
+  "+unknown" row. This immediately corrected a published number: modelaudit's
+  benign FP rate is 13/219 at critical, not 94 (its warning tier). No
+  cross-tool severity scale was invented; the tiers are each tool's own.
+* **Done: hub-scale sweep** (2026-08-04). 1,185 unvetted public files, 495
+  repos, 17 flagged: 9 FPs in two classes (both fixed), 8 true detections on
+  four bypass-PoC repos the sweep surfaced itself. Method, per-file review
+  and verbatim results: `docs/hub-sweep-2026-08-04.md` (+ `.json`). Repeat
+  on every release candidate.
 * **Pickle-only.** Nothing covers Keras Lambda layers, ONNX custom operators, or
   GGUF chat-template injection, all of which are model-file code execution and
   all of which Rowan already scans. ColdwaterQ's DEFCON 30 deck points at a
