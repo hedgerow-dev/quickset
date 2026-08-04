@@ -4,10 +4,13 @@ MalHug (github.com/security-pride/MalHug) is 91 real in-the-wild malicious
 HuggingFace models with per-model labels: the malicious behavior class and
 the library/API used (the sink). Two claims depend on it:
 
-- detection: how many of the 91 Rowan (and the other entrants) flag;
+- coverage: how many Rowan actually read. A file it declined to open has no
+  verdict and is excluded from the detection denominator, never counted as a
+  detection. See _is_coverage_skip.
+- detection: of the files with a verdict, how many Rowan flags;
 - reason-correctness: when Rowan flags, does the finding name the same sink
   the corpus author recorded? The 79/80 claim from the first session was
-  never re-verified and the corpus was not cached, so it is provisional.
+  never re-verified and the corpus was not cached, so it is retired.
 
 Evidence discipline (P3-4): the artifact written by --json pins the corpus
 CSV sha256, the tool commit (open-rowan via PYTHONPATH), the threshold
@@ -16,8 +19,12 @@ session transcript.
 
 Usage:
   python scripts/malhug_scan.py [--csv URL] [--jobs N] [--json out.json]
-  --scan-only        skip downloads, rescan the cache
   --purge            delete the cache
+
+Re-running is cheap: fetch_one skips any repo with a .done marker, so an
+existing cache is reused and only the scan and scoring repeat. Put the build
+under test on both PYTHONPATH and PATH, since the scan shells out to the
+open-rowan console script and the editable install otherwise wins.
 
 Downloads go to external-cache/malhug/ (gitignored), one subdir per repo,
 only the file(s) named in the corpus row.
@@ -144,6 +151,25 @@ def scan_dir(repo_dir: Path, row: dict) -> dict:
     }
 
 
+_COVERAGE_SKIP_RULES = frozenset({"MFV-SKIP-001", "MFV-SKIP-002", "MFV-SKIP-003"})
+
+
+def _is_coverage_skip(res: dict) -> bool:
+    """True when the only thing Rowan said is that it never read the file.
+
+    MFV-SKIP-001's own message is "NOT a clean verdict: the file was never
+    analysed". Two MalHug models are 553MB Keras files that trip the 500MB cap
+    and produce nothing else. Counting those as detections is the same
+    accounting error this benchmark criticises picklescan for, where 95
+    unparseable files were booked as clean verdicts, only inverted. They are
+    scored as no-verdict, which is what the coverage column exists to show.
+    """
+    findings = res.get("findings") or []
+    return bool(findings) and all(
+        f.get("rule_id") in _COVERAGE_SKIP_RULES for f in findings
+    )
+
+
 def _sink_matches(message: str, sink: str) -> bool:
     """Does the finding's message name the same sink the corpus recorded?
 
@@ -199,13 +225,21 @@ def main() -> int:
             if i % 20 == 0:
                 print(f"  scanned {i}/{len(scan_rows)}")
 
-    detected = [r for r in results if r.get("findings")]
+    no_verdict = [r for r in results if _is_coverage_skip(r)]
+    detected = [r for r in results
+                if r.get("findings") and not _is_coverage_skip(r)]
+    scored = len(results) - len(no_verdict)
     sink_ok = [r for r in detected if _sink_matches(r["findings"][0]["message"], r.get("sink"))]
     errors = [r for r in results if r.get("error")]
 
     print()
-    print(f"scanned {len(results)}, detected {len(detected)}, errors {len(errors)}")
+    print(f"scanned {len(results)}, errors {len(errors)}")
+    print(f"coverage (file actually read): {scored}/{len(results)}")
+    print(f"detected: {len(detected)}/{scored} of files with a verdict")
     print(f"reason-correct (top finding names corpus sink): {len(sink_ok)}/{len(detected)}")
+    print("\nno verdict (never read, not counted as detection):")
+    for r in no_verdict:
+        print(f"  {r['repo']} ({r.get('sink')}): {r['findings'][0]['rule_id']}")
     print("\nmissed:")
     for r in results:
         if not r.get("findings"):
@@ -221,8 +255,17 @@ def main() -> int:
                 "corpus": "MalHug",
                 "corpus_csv_sha256": csv_sha,
                 "scanner": "open-rowan (PYTHONPATH defines commit)",
-                "threshold_policy": "findings above INFO; errored excluded from both counts",
+                "threshold_policy": (
+                    "findings above INFO; errored excluded from both counts; "
+                    "a file whose only findings are coverage skips "
+                    "(MFV-SKIP-001/002/003) counts as no-verdict, never as a "
+                    "detection, because the file was never read"
+                ),
                 "models_labeled": len(models),
+                "coverage": {"read": scored, "no_verdict": len(no_verdict),
+                             "total": len(results)},
+                "detected": len(detected),
+                "reason_correct": len(sink_ok),
             },
             "results": results,
         }, indent=1), encoding="utf-8")

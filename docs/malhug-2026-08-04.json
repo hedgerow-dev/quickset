@@ -3,8 +3,15 @@
   "corpus": "MalHug",
   "corpus_csv_sha256": "a5eb5f30d7ce3e6ae029cc9519c484f54100bb6814a9dd25729ca778834a204c",
   "scanner": "open-rowan (PYTHONPATH defines commit)",
-  "threshold_policy": "findings above INFO; errored excluded from both counts",
-  "models_labeled": 91
+  "threshold_policy": "findings above INFO; errored excluded from both counts; a file whose only findings are coverage skips (MFV-SKIP-001/002/003) counts as no-verdict, never as a detection, because the file was never read",
+  "models_labeled": 91,
+  "coverage": {
+   "read": 85,
+   "no_verdict": 2,
+   "total": 87
+  },
+  "detected": 85,
+  "reason_correct": 84
  },
  "results": [
   {
