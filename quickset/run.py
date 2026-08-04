@@ -36,15 +36,17 @@ class Score:
     @property
     def covered(self) -> int:
         """Files the scanner returned any verdict on at all. Errored files
-        (parse failures, crashes, zero-file scans) are not covered: a tool
-        that never read the file has no verdict to its name, and counting
-        those as clean is how a broken scanner wins a benchmark."""
-        return self.total_malicious + self.total_benign - self.errors
+        never reach the totals (they are skipped before counting), so
+        coverage is the counted files against everything attempted."""
+        return self.total_malicious + self.total_benign
+
+    @property
+    def attempted(self) -> int:
+        return self.total_malicious + self.total_benign + self.errors
 
     @property
     def coverage(self) -> float:
-        total = self.total_malicious + self.total_benign
-        return self.covered / total if total else 0.0
+        return self.covered / self.attempted if self.attempted else 0.0
 
     @property
     def recall(self) -> float:
@@ -281,8 +283,7 @@ def _print_report(scores: list[Score], per_case: dict, adapters: list[Adapter]) 
     for score in scores:
         det = f"{score.detected}/{score.total_malicious} ({score.recall:.0%})"
         fps = f"{score.false_positives}/{score.total_benign} ({score.fp_rate:.0%})"
-        total = score.total_malicious + score.total_benign
-        cov = f"{score.covered}/{total} ({score.coverage:.0%})"
+        cov = f"{score.covered}/{score.attempted} ({score.coverage:.0%})"
         # Errors were previously counted and never printed, so a scanner
         # erroring on every case looked identical to one flagging nothing.
         err = str(score.errors) if score.errors else "-"
