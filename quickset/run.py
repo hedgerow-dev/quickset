@@ -28,6 +28,10 @@ class Score:
     false_positives: int
     total_benign: int
     errors: int
+    # Same counts at the lenient threshold (the tool's unknown bucket
+    # included). Equal to the strict counts when the tool has no unknown tier.
+    detected_lenient: int = 0
+    false_positives_lenient: int = 0
 
     @property
     def recall(self) -> float:
@@ -65,10 +69,13 @@ def run(corpus_dir: Path, jobs: int = 1) -> tuple[list[Score], dict]:
             outcomes = [adapter.scan(Path(p)) for p, _ in items]
 
         detected = fp = errors = 0
+        detected_l = fp_l = 0
         n_mal = n_ben = 0
         for (_path, case), outcome in zip(items, outcomes):
+            lenient = outcome.flagged if outcome.flagged_lenient is None else outcome.flagged_lenient
             per_case.setdefault(case.id, {})[adapter.name] = {
                 "flagged": outcome.flagged,
+                "flagged_lenient": lenient,
                 "detail": outcome.detail,
                 "errored": outcome.errored,
             }
@@ -77,10 +84,13 @@ def run(corpus_dir: Path, jobs: int = 1) -> tuple[list[Score], dict]:
             if case.malicious:
                 n_mal += 1
                 detected += bool(outcome.flagged)
+                detected_l += bool(lenient)
             else:
                 n_ben += 1
                 fp += bool(outcome.flagged)
-        scores.append(Score(adapter.name, detected, n_mal, fp, n_ben, errors))
+                fp_l += bool(lenient)
+        scores.append(Score(adapter.name, detected, n_mal, fp, n_ben, errors,
+                            detected_l, fp_l))
 
     return scores, per_case
 
@@ -96,9 +106,9 @@ def run_external(adapters: list[Adapter]) -> list[tuple[object, dict[str, tuple[
         if not external_module.is_fetched(corpus):
             continue
         files = sorted(external_module.corpus_dir(corpus).iterdir())
-        tally: dict[str, tuple[int, int, int, int]] = {}
+        tally: dict[str, tuple[int, int, int, int, int, int]] = {}
         for adapter in adapters:
-            det = mal = fp = ben = 0
+            det = mal = fp = ben = det_l = fp_l = 0
             for f in files:
                 label = external_module.label_of(corpus, f.name)
                 if label is None:
@@ -109,13 +119,19 @@ def run_external(adapters: list[Adapter]) -> list[tuple[object, dict[str, tuple[
                     target = Path(tmp) / f.name
                     target.write_bytes(f.read_bytes())
                     outcome = adapter.scan(target)
+                lenient = (
+                    outcome.flagged if outcome.flagged_lenient is None
+                    else outcome.flagged_lenient
+                )
                 if label:
                     mal += 1
                     det += bool(outcome.flagged)
+                    det_l += bool(lenient)
                 else:
                     ben += 1
                     fp += bool(outcome.flagged)
-            tally[adapter.name] = (det, mal, fp, ben)
+                    fp_l += bool(lenient)
+            tally[adapter.name] = (det, mal, fp, ben, det_l, fp_l)
         results.append((corpus, tally))
     return results
 
@@ -139,10 +155,14 @@ def _print_external(results, names: list[str]) -> None:
             print(f"    {line}")
         print()
         for name in names:
-            det, mal, fp, ben = tally.get(name, (0, 0, 0, 0))
+            det, mal, fp, ben, det_l, fp_l = tally.get(name, (0, 0, 0, 0, 0, 0))
             d = f"{det}/{mal} ({det / mal:.0%})" if mal else "-"
             f_ = f"{fp}/{ben} ({fp / ben:.0%})" if ben else "no benign half"
-            print(f"      {name:12} detection {d:14} false positives {f_}")
+            print(f"      {name:20} detection {d:14} false positives {f_}")
+            if (det_l, fp_l) != (det, fp):
+                d_l = f"{det_l}/{mal} ({det_l / mal:.0%})" if mal else "-"
+                f_l = f"{fp_l}/{ben} ({fp_l / ben:.0%})" if ben else "no benign half"
+                print(f"      {(name + ' +unknown'):20} detection {d_l:14} false positives {f_l}")
     print()
 
 
@@ -231,7 +251,7 @@ def _print_report(scores: list[Score], per_case: dict, adapters: list[Adapter]) 
     print()
     print("SUMMARY")
     print()
-    print("scanner".ljust(14), "detection".ljust(16), "false positives".ljust(18), "errors")
+    print("scanner".ljust(22), "detection".ljust(16), "false positives".ljust(18), "errors")
     print("-" * 62)
     for score in scores:
         det = f"{score.detected}/{score.total_malicious} ({score.recall:.0%})"
@@ -239,7 +259,17 @@ def _print_report(scores: list[Score], per_case: dict, adapters: list[Adapter]) 
         # Errors were previously counted and never printed, so a scanner
         # erroring on every case looked identical to one flagging nothing.
         err = str(score.errors) if score.errors else "-"
-        print(score.scanner.ljust(14), det.ljust(16), fps.ljust(18), err)
+        print(score.scanner.ljust(22), det.ljust(16), fps.ljust(18), err)
+        if (score.detected_lenient, score.false_positives_lenient) != (
+            score.detected, score.false_positives,
+        ):
+            det_l = (f"{score.detected_lenient}/{score.total_malicious} "
+                     f"({score.detected_lenient / score.total_malicious:.0%})"
+                     if score.total_malicious else "-")
+            fp_l = (f"{score.false_positives_lenient}/{score.total_benign} "
+                    f"({score.false_positives_lenient / score.total_benign:.0%})"
+                    if score.total_benign else "-")
+            print((score.scanner + " +unknown").ljust(22), det_l.ljust(16), fp_l.ljust(18))
 
     print()
     print("Detection and false positives are reported separately and never")
@@ -247,11 +277,13 @@ def _print_report(scores: list[Score], per_case: dict, adapters: list[Adapter]) 
     print("perfect detection, and one that flags nothing has a perfect false")
     print("positive rate; only the pair means anything.")
     print()
-    print("Scanners are scored at their own shipped defaults, which are not")
-    print("the same threshold. fickling in particular grades on four levels")
-    print("and treats anything above LIKELY_SAFE as unsafe -- it is built to")
-    print("be read by a human, not to gate a pipeline, so its false-positive")
-    print("column is measuring a different design goal. Run with --verbose")
+    print("Each scanner's main row is its strict threshold: only the tier its")
+    print("author calls actionable. The '+unknown' row adds that tool's unknown")
+    print("bucket (picklescan's suspicious, modelaudit's warning, fickling's")
+    print("SUSPICIOUS, open-rowan's INFO), the analogue of not-flagged for a")
+    print("human triager. Report both thresholds or neither: scoring one tool")
+    print("at its top tier while counting another's unknown tier is the")
+    print("specific unfairness this table exists to avoid. Run with --verbose")
     print("to see each scanner's own verdict string per case.")
     print()
 

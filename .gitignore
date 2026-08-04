@@ -6,3 +6,5 @@ results.json
 model-cache/
 external-cache/
 scripts/.cache/
+sweep-cache/
+sweep-results.json

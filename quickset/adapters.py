@@ -34,11 +34,22 @@ TIMED_OUT_RETURNCODE = -9999
 
 @dataclass(frozen=True)
 class ScanOutcome:
-    """What one scanner said about one file."""
+    """What one scanner said about one file.
+
+    `flagged` is the strict threshold: only the tier its author calls
+    actionable. `flagged_lenient` additionally counts the tool's *unknown*
+    bucket (picklescan's "suspicious", modelaudit's "warning", Rowan's INFO,
+    fickling's SUSPICIOUS), the tier each tool itself declines to stand
+    behind. None means the tool has no distinguishable unknown tier, so both
+    thresholds are the same. Scoring one tool at its top tier while counting
+    another's unknown tier is the specific unfairness this field exists to
+    prevent; report both thresholds or neither.
+    """
 
     flagged: bool
     detail: str = ""
     errored: bool = False
+    flagged_lenient: bool | None = None
 
 
 @dataclass(frozen=True)
@@ -98,17 +109,26 @@ class PicklescanAdapter(Adapter):
         if proc.returncode == TIMED_OUT_RETURNCODE:
             return ScanOutcome(flagged=False, detail="timed out", errored=True)
         text = proc.stdout + proc.stderr
-        # picklescan prints "dangerous import '<x>' FOUND" per hit and an
-        # "Infected files: N" summary line.
+        # picklescan prints "dangerous import '<x>' FOUND" per hit and summary
+        # lines for "Infected files:", "Suspicious globals:" and "Dangerous
+        # globals:". "Suspicious" is picklescan's own unknown bucket: the
+        # strict threshold counts dangerous only.
         dangerous = "FOUND" in text
         infected = 0
+        suspicious = 0
         for line in text.splitlines():
-            if line.strip().startswith("Infected files:"):
-                with_digits = line.split(":", 1)[1].strip()
+            stripped = line.strip()
+            if stripped.startswith("Infected files:"):
+                with_digits = stripped.split(":", 1)[1].strip()
                 infected = int(with_digits) if with_digits.isdigit() else 0
+            elif stripped.startswith("Suspicious globals:"):
+                with_digits = stripped.split(":", 1)[1].strip()
+                suspicious = int(with_digits) if with_digits.isdigit() else 0
+        flagged = dangerous or infected > 0
         return ScanOutcome(
-            flagged=dangerous or infected > 0,
+            flagged=flagged,
             detail=_first_signal(text, "FOUND"),
+            flagged_lenient=flagged or suspicious > 0,
         )
 
 
@@ -169,19 +189,12 @@ class FicklingAdapter(Adapter):
         object.__setattr__(self, "executable", "fickling")
 
     def scan(self, path: Path) -> ScanOutcome:
-        # `--check-safety` prints nothing at all on either verdict and signals
-        # only through the exit code (1 = not likely safe, 0 = likely safe).
-        # The first version of this adapter matched on output text that never
-        # exists, so fickling scored 0 on everything.
-        #
-        # `--json-output` carries the actual severity, which is worth having:
-        # fickling grades on four levels and the pass/fail bit alone hides
-        # that a "LIKELY_UNSAFE" verdict on an ordinary `OrderedDict.update`
-        # is a different claim from "LIKELY_OVERTLY_MALICIOUS" on os.system.
-        # The flag threshold still matches fickling's own CLI contract --
-        # anything above LIKELY_SAFE -- because the stated rule for these
-        # adapters is to score the shipped tool at its shipped defaults, not
-        # at a threshold picked here to flatter anyone.
+        # The flag threshold below strictens fickling's own CLI contract.
+        # fickling grades on four levels (LIKELY_SAFE < SUSPICIOUS <
+        # LIKELY_UNSAFE < LIKELY_OVERTLY_MALICIOUS) and its CLI flags anything
+        # above LIKELY_SAFE -- but SUSPICIOUS is its unknown bucket, the tier
+        # it declines to call unsafe. Strict is LIKELY_UNSAFE and above;
+        # lenient is the shipped CLI default.
         with tempfile.TemporaryDirectory() as tmp:
             out = Path(tmp) / "fickling.json"
             proc = self._run(
@@ -204,8 +217,17 @@ class FicklingAdapter(Adapter):
             return ScanOutcome(flagged=False, detail=_first_line(stderr), errored=True)
 
         if severity:
-            return ScanOutcome(flagged=severity != "LIKELY_SAFE", detail=severity)
-        return ScanOutcome(flagged=proc.returncode != 0, detail=f"exit {proc.returncode}")
+            return ScanOutcome(
+                flagged=severity in ("LIKELY_UNSAFE", "LIKELY_OVERTLY_MALICIOUS",
+                                     "OVERTLY_MALICIOUS"),
+                detail=severity,
+                flagged_lenient=severity != "LIKELY_SAFE",
+            )
+        return ScanOutcome(
+            flagged=proc.returncode != 0,
+            detail=f"exit {proc.returncode}",
+            flagged_lenient=proc.returncode != 0,
+        )
 
 
 class ModelAuditAdapter(Adapter):
@@ -247,6 +269,10 @@ class ModelAuditAdapter(Adapter):
             return ScanOutcome(flagged=False, detail="no scanner matched", errored=True)
 
         issues = report.get("issues", [])
+        # "warning" is modelaudit's unknown bucket (its own docs decline to
+        # call it actionable): strict is critical only, lenient is the shipped
+        # default gate of warning+critical.
+        critical = [i for i in issues if i.get("severity") == "critical"]
         actionable = [i for i in issues if i.get("severity") in ("warning", "critical")]
         worst = next(
             (s for s in ("critical", "warning", "info", "debug")
@@ -254,8 +280,9 @@ class ModelAuditAdapter(Adapter):
             "",
         )
         return ScanOutcome(
-            flagged=bool(actionable),
+            flagged=bool(critical),
             detail=f"{len(issues)} issue(s){f', worst {worst}' if worst else ''}",
+            flagged_lenient=bool(actionable),
         )
 
 
@@ -299,15 +326,25 @@ class OpenRowanAdapter(Adapter):
         # the single most likely way a benchmark like this produces a
         # confidently wrong headline number -- hence test_adapters.py, which
         # pins each adapter against a known-flagged and known-clean file.
-        findings = [
+        findings_all = [
             f for f in report.get("findings", [])
             if str(f.get("file") or f.get("file_path") or "").endswith(path.name)
-            and str(f.get("severity", "")).lower() != "info"
+        ]
+        findings = [
+            f for f in findings_all
+            if str(f.get("severity", "")).lower() != "info"
         ]
         if not findings:
-            return ScanOutcome(flagged=False)
+            return ScanOutcome(
+                flagged=False,
+                flagged_lenient=bool(findings_all),
+            )
         top = max(findings, key=lambda f: _SEVERITY_ORDER.index(str(f.get("severity", "info")).lower()))
-        return ScanOutcome(flagged=True, detail=f"{top.get('rule_id')} / {top.get('severity')}")
+        return ScanOutcome(
+            flagged=True,
+            detail=f"{top.get('rule_id')} / {top.get('severity')}",
+            flagged_lenient=True,
+        )
 
 
 _SEVERITY_ORDER = ["info", "low", "medium", "high", "critical"]
