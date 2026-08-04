@@ -11,7 +11,7 @@
   "library": "sklearn",
   "downloads": 27,
   "last_commit": "2024-02-13T04:21:54.000Z",
-  "note": "",
+  "note": "HF rollup caution: its pickle import scan labels sklearn.linear_model._logistic.LogisticRegression, _codecs.encode, joblib.numpy_pickle.NumpyArrayWrapper suspicious.",
   "license": "mit"
  },
  {
@@ -26,7 +26,7 @@
   "library": "sklearn",
   "downloads": 33,
   "last_commit": "2026-03-28T20:37:25.000Z",
-  "note": "",
+  "note": "HF rollup caution: its pickle import scan labels joblib.numpy_pickle.NumpyArrayWrapper, sklearn.linear_model._base.LinearRegression suspicious.",
   "license": ""
  },
  {
@@ -41,7 +41,7 @@
   "library": "sklearn",
   "downloads": 33,
   "last_commit": "2026-04-08T14:57:07.000Z",
-  "note": "",
+  "note": "HF rollup caution: its pickle import scan labels sklearn.linear_model._stochastic_gradient.SGDClassifier, _loss.CyHalfBinomialLoss suspicious.",
   "license": ""
  },
  {
@@ -101,7 +101,7 @@
   "library": "",
   "downloads": 4,
   "last_commit": "2024-12-02T07:48:11.000Z",
-  "note": "",
+  "note": "HF rollup caution: its pickle import scan labels numpy.core.multiarray._reconstruct, numpy.ndarray, sklearn.linear_model._logistic.LogisticRegression, joblib.numpy_pickle.NumpyArrayWrapper, numpy.dtype, _codecs.encode suspicious.",
   "license": ""
  },
  {
@@ -116,7 +116,7 @@
   "library": "scikit-learn",
   "downloads": 11,
   "last_commit": "2026-04-30T01:54:17.000Z",
-  "note": "",
+  "note": "HF rollup caution: its pickle import scan labels sklearn.calibration.CalibratedClassifierCV, sklearn.linear_model._logistic.LogisticRegression, joblib.numpy_pickle.NumpyArrayWrapper suspicious.",
   "license": "mit"
  },
  {
@@ -131,7 +131,7 @@
   "library": "scikit-learn",
   "downloads": 11,
   "last_commit": "2026-04-28T00:28:39.000Z",
-  "note": "",
+  "note": "HF rollup caution: its pickle import scan labels sklearn.linear_model._logistic.LogisticRegression, joblib.numpy_pickle.NumpyArrayWrapper suspicious.",
   "license": "mit"
  },
  {
@@ -206,7 +206,7 @@
   "library": "keras",
   "downloads": 1409,
   "last_commit": "2026-07-15T13:14:41.000Z",
-  "note": "",
+  "note": "HF rollup caution: its pickle import scan labels sklearn.preprocessing._data.MinMaxScaler, joblib.numpy_pickle.NumpyArrayWrapper suspicious.",
   "license": "mit"
  },
  {
@@ -221,7 +221,7 @@
   "library": "keras",
   "downloads": 1409,
   "last_commit": "2026-07-15T13:14:41.000Z",
-  "note": "",
+  "note": "HF rollup caution: its pickle import scan labels sklearn.preprocessing._data.MinMaxScaler, joblib.numpy_pickle.NumpyArrayWrapper suspicious.",
   "license": "mit"
  },
  {
@@ -296,7 +296,7 @@
   "library": "scikit-learn",
   "downloads": 297,
   "last_commit": "2026-08-03T01:57:56.000Z",
-  "note": "",
+  "note": "HF rollup caution: its pickle import scan labels sklearn.calibration.CalibratedClassifierCV, sklearn.calibration._CalibratedClassifier, sklearn.preprocessing._label.LabelEncoder, sklearn.ensemble._hist_gradient_boosting.gradient_boosting.HistGradientBoostingClassifier, joblib.numpy_pickle.NumpyArrayWrapper suspicious.",
   "license": "apache-2.0"
  },
  {
@@ -311,7 +311,7 @@
   "library": "kernels",
   "downloads": 272,
   "last_commit": "2026-07-21T02:59:16.000Z",
-  "note": "",
+  "note": "HF rollup caution: its pickle import scan labels sklearn.preprocessing._label.LabelEncoder, joblib.numpy_pickle.NumpyArrayWrapper, sklearn.ensemble._hist_gradient_boosting.gradient_boosting.HistGradientBoostingClassifier suspicious.",
   "license": "apache-2.0"
  },
  {
@@ -326,7 +326,7 @@
   "library": "sklearn",
   "downloads": 5,
   "last_commit": "2026-07-21T02:54:03.000Z",
-  "note": "",
+  "note": "Weights carry attack-shaped strings (TF-IDF vocabulary keys); verified byte by byte that none is a GLOBAL or STACK_GLOBAL operand. Kept deliberately: a scanner that trips on vocabulary is producing a false positive.",
   "license": "apache-2.0"
  },
  {
@@ -431,7 +431,7 @@
   "library": "",
   "downloads": 9,
   "last_commit": "2025-10-21T18:11:04.000Z",
-  "note": "",
+  "note": "Weights carry attack-shaped strings (TF-IDF vocabulary keys); verified byte by byte that none is a GLOBAL or STACK_GLOBAL operand. Kept deliberately: a scanner that trips on vocabulary is producing a false positive.",
   "license": ""
  },
  {
@@ -521,7 +521,7 @@
   "library": "sklearn",
   "downloads": 7,
   "last_commit": "2022-11-21T09:21:01.000Z",
-  "note": "",
+  "note": "HF rollup caution: its pickle import scan labels numpy.float64, sklearn.pipeline.Pipeline, sklearn.preprocessing._data.StandardScaler, joblib.numpy_pickle.NumpyArrayWrapper, numpy.core.multiarray._reconstruct, sklearn.compose._column_transformer.ColumnTransformer suspicious.",
   "license": ""
  },
  {
@@ -536,7 +536,7 @@
   "library": "sklearn",
   "downloads": 7,
   "last_commit": "2022-11-22T01:01:44.000Z",
-  "note": "",
+  "note": "HF rollup caution: its pickle import scan labels numpy.float64, sklearn.pipeline.Pipeline, sklearn.preprocessing._data.StandardScaler, joblib.numpy_pickle.NumpyArrayWrapper, numpy.core.multiarray._reconstruct, sklearn.compose._column_transformer.ColumnTransformer suspicious.",
   "license": ""
  },
  {
@@ -551,7 +551,7 @@
   "library": "transformers",
   "downloads": 579,
   "last_commit": "2024-05-30T08:38:39.000Z",
-  "note": "",
+  "note": "HF rollup caution: its pickle import scan labels joblib.numpy_pickle.NumpyArrayWrapper, numpy.ndarray, numpy.core.multiarray._reconstruct, _codecs.encode, numpy.dtype, sklearn.preprocessing._label.LabelEncoder suspicious.",
   "license": "mit"
  },
  {
@@ -746,7 +746,7 @@
   "library": "",
   "downloads": 338,
   "last_commit": "2024-11-20T13:37:24.000Z",
-  "note": "",
+  "note": "HF rollup caution: its pickle import scan labels joblib.numpy_pickle.NumpyArrayWrapper, _codecs.encode, sklearn.preprocessing._data.StandardScaler, numpy.ndarray, numpy._core.multiarray._reconstruct, numpy.dtype suspicious.",
   "license": "apache-2.0"
  },
  {
@@ -956,7 +956,7 @@
   "library": "sklearn",
   "downloads": 22,
   "last_commit": "2026-04-07T17:16:14.000Z",
-  "note": "",
+  "note": "HF rollup caution: its pickle import scan labels sklearn.linear_model._stochastic_gradient.SGDClassifier, _loss.CyHalfBinomialLoss suspicious.",
   "license": ""
  },
  {
@@ -1001,7 +1001,7 @@
   "library": "keras",
   "downloads": 327,
   "last_commit": "2026-07-07T14:13:42.000Z",
-  "note": "",
+  "note": "HF rollup caution: its pickle import scan labels None.dtype, joblib.numpy_pickle.NumpyArrayWrapper, sklearn.preprocessing._data.MinMaxScaler suspicious.",
   "license": ""
  },
  {
@@ -1136,7 +1136,7 @@
   "library": "sklearn",
   "downloads": 75,
   "last_commit": "2021-06-03T13:10:56.000Z",
-  "note": "",
+  "note": "HF rollup caution: its pickle import scan labels joblib.numpy_pickle.NumpyArrayWrapper, numpy.core.multiarray.scalar, sklearn.pipeline.Pipeline, sklearn.preprocessing._data.StandardScaler suspicious.",
   "license": ""
  },
  {
@@ -1256,7 +1256,7 @@
   "library": "sklearn",
   "downloads": 8,
   "last_commit": "2025-08-15T08:28:52.000Z",
-  "note": "",
+  "note": "HF rollup caution: its pickle import scan labels sklearn.svm._classes.SVC, numpy.core.multiarray.scalar suspicious.",
   "license": ""
  },
  {
@@ -1271,7 +1271,7 @@
   "library": "",
   "downloads": 6,
   "last_commit": "2025-12-27T14:08:55.000Z",
-  "note": "",
+  "note": "HF rollup caution: its pickle import scan labels sklearn.preprocessing._label.LabelEncoder suspicious.",
   "license": "mit"
  },
  {
@@ -1286,7 +1286,7 @@
   "library": "",
   "downloads": 6,
   "last_commit": "2025-12-27T14:08:54.000Z",
-  "note": "",
+  "note": "HF rollup caution: its pickle import scan labels sklearn.naive_bayes.MultinomialNB suspicious.",
   "license": "mit"
  },
  {
@@ -1751,7 +1751,7 @@
   "library": "transformers",
   "downloads": 2,
   "last_commit": "2021-10-27T23:32:46.000Z",
-  "note": "",
+  "note": "HF rollup caution: its pickle import scan labels transformers.trainer_utils.IntervalStrategy, transformers.trainer_utils.HubStrategy, transformers.training_args.TrainingArguments, transformers.trainer_utils.SchedulerType, torch.device suspicious.",
   "license": "apache-2.0"
  },
  {
@@ -1766,7 +1766,7 @@
   "library": "transformers",
   "downloads": 4,
   "last_commit": "2021-11-03T15:00:58.000Z",
-  "note": "",
+  "note": "HF rollup caution: its pickle import scan labels transformers.trainer_utils.HubStrategy, transformers.trainer_utils.IntervalStrategy, torch.device, transformers.training_args.TrainingArguments, transformers.trainer_utils.SchedulerType suspicious.",
   "license": ""
  },
  {
@@ -1781,7 +1781,7 @@
   "library": "transformers",
   "downloads": 4,
   "last_commit": "2021-11-04T00:08:46.000Z",
-  "note": "",
+  "note": "HF rollup caution: its pickle import scan labels transformers.trainer_utils.HubStrategy, transformers.trainer_utils.IntervalStrategy, torch.device, transformers.training_args.TrainingArguments, transformers.trainer_utils.SchedulerType suspicious.",
   "license": ""
  },
  {
@@ -1796,7 +1796,7 @@
   "library": "transformers",
   "downloads": 3,
   "last_commit": "2021-11-04T10:04:17.000Z",
-  "note": "",
+  "note": "HF rollup caution: its pickle import scan labels transformers.trainer_utils.HubStrategy, transformers.trainer_utils.IntervalStrategy, torch.device, transformers.training_args.TrainingArguments, transformers.trainer_utils.SchedulerType suspicious.",
   "license": ""
  },
  {
@@ -1811,7 +1811,7 @@
   "library": "transformers",
   "downloads": 6,
   "last_commit": "2021-09-23T23:56:58.000Z",
-  "note": "",
+  "note": "HF rollup caution: its pickle import scan labels transformers.trainer_utils.HubStrategy, transformers.trainer_utils.IntervalStrategy, torch.device, transformers.training_args.TrainingArguments, transformers.trainer_utils.SchedulerType suspicious.",
   "license": "apache-2.0"
  },
  {
@@ -1841,7 +1841,7 @@
   "library": "transformers",
   "downloads": 2,
   "last_commit": "2021-12-08T00:04:08.000Z",
-  "note": "",
+  "note": "HF rollup caution: its pickle import scan labels transformers.trainer_utils.SchedulerType, transformers.trainer_utils.HubStrategy, transformers.trainer_utils.IntervalStrategy, transformers.training_args.TrainingArguments, torch.device suspicious.",
   "license": "apache-2.0"
  },
  {
@@ -1856,7 +1856,7 @@
   "library": "transformers",
   "downloads": 2,
   "last_commit": "2021-10-22T16:40:39.000Z",
-  "note": "",
+  "note": "HF rollup caution: its pickle import scan labels torch.device, transformers.trainer_utils.IntervalStrategy, transformers.trainer_utils.HubStrategy, transformers.trainer_utils.SchedulerType, transformers.training_args.TrainingArguments suspicious.",
   "license": ""
  },
  {
@@ -1871,7 +1871,7 @@
   "library": "transformers",
   "downloads": 2,
   "last_commit": "2021-10-27T22:53:58.000Z",
-  "note": "",
+  "note": "HF rollup caution: its pickle import scan labels transformers.trainer_utils.IntervalStrategy, torch.device, transformers.trainer_utils.HubStrategy, transformers.trainer_utils.SchedulerType, transformers.training_args.TrainingArguments suspicious.",
   "license": "apache-2.0"
  },
  {
@@ -1886,7 +1886,7 @@
   "library": "transformers",
   "downloads": 1,
   "last_commit": "2021-10-28T14:22:24.000Z",
-  "note": "",
+  "note": "HF rollup caution: its pickle import scan labels transformers.training_args.TrainingArguments, torch.device, transformers.trainer_utils.HubStrategy, transformers.trainer_utils.SchedulerType, transformers.trainer_utils.IntervalStrategy suspicious.",
   "license": "apache-2.0"
  },
  {
@@ -1901,7 +1901,7 @@
   "library": "transformers",
   "downloads": 2,
   "last_commit": "2021-10-28T14:41:00.000Z",
-  "note": "",
+  "note": "HF rollup caution: its pickle import scan labels transformers.training_args.TrainingArguments, torch.device, transformers.trainer_utils.HubStrategy, transformers.trainer_utils.SchedulerType, transformers.trainer_utils.IntervalStrategy suspicious.",
   "license": "apache-2.0"
  },
  {
@@ -1916,7 +1916,7 @@
   "library": "transformers",
   "downloads": 5,
   "last_commit": "2021-10-20T11:24:55.000Z",
-  "note": "",
+  "note": "HF rollup caution: its pickle import scan labels torch.device, transformers.trainer_utils.IntervalStrategy, transformers.trainer_utils.HubStrategy, transformers.trainer_utils.SchedulerType, transformers.training_args.TrainingArguments suspicious.",
   "license": ""
  },
  {
@@ -1931,7 +1931,7 @@
   "library": "transformers",
   "downloads": 11,
   "last_commit": "2021-10-27T16:10:30.000Z",
-  "note": "",
+  "note": "HF rollup caution: its pickle import scan labels transformers.training_args.TrainingArguments, torch.device, transformers.trainer_utils.HubStrategy, transformers.trainer_utils.SchedulerType, transformers.trainer_utils.IntervalStrategy suspicious.",
   "license": "apache-2.0"
  },
  {
@@ -1946,7 +1946,7 @@
   "library": "transformers",
   "downloads": 3,
   "last_commit": "2021-10-27T09:41:06.000Z",
-  "note": "",
+  "note": "HF rollup caution: its pickle import scan labels transformers.training_args.TrainingArguments, torch.device, transformers.trainer_utils.HubStrategy, transformers.trainer_utils.SchedulerType, transformers.trainer_utils.IntervalStrategy suspicious.",
   "license": "apache-2.0"
  },
  {
@@ -2081,7 +2081,7 @@
   "library": "sklearn",
   "downloads": 8,
   "last_commit": "2026-05-18T17:24:46.000Z",
-  "note": "",
+  "note": "HF rollup caution: its pickle import scan labels joblib.numpy_pickle.NumpyArrayWrapper, sklearn.ensemble._hist_gradient_boosting.gradient_boosting.HistGradientBoostingClassifier suspicious.",
   "license": "other"
  },
  {
@@ -2096,7 +2096,7 @@
   "library": "keras",
   "downloads": 17,
   "last_commit": "2024-09-07T08:30:04.000Z",
-  "note": "",
+  "note": "HF rollup caution: its pickle import scan labels numpy.dtype, numpy.ndarray, numpy.core.multiarray._reconstruct, joblib.numpy_pickle.NumpyArrayWrapper, _codecs.encode, sklearn.neighbors._classification.KNeighborsClassifier suspicious.",
   "license": "mit"
  },
  {
@@ -2111,7 +2111,7 @@
   "library": "keras",
   "downloads": 17,
   "last_commit": "2024-09-07T08:30:04.000Z",
-  "note": "",
+  "note": "HF rollup caution: its pickle import scan labels numpy.dtype, numpy.ndarray, numpy.core.multiarray._reconstruct, joblib.numpy_pickle.NumpyArrayWrapper, sklearn.linear_model._logistic.LogisticRegression, _codecs.encode suspicious.",
   "license": "mit"
  },
  {
@@ -2126,7 +2126,7 @@
   "library": "transformers",
   "downloads": 4,
   "last_commit": "2020-05-18T18:16:16.000Z",
-  "note": "",
+  "note": "HF rollup caution: its pickle import scan labels torch.device, transformers.training_args.TrainingArguments suspicious.",
   "license": ""
  },
  {
@@ -2171,7 +2171,7 @@
   "library": "transformers",
   "downloads": 7771,
   "last_commit": "2020-08-18T14:06:07.000Z",
-  "note": "",
+  "note": "HF rollup caution: its pickle import scan labels torch.device, transformers.training_args.TrainingArguments suspicious.",
   "license": ""
  },
  {
@@ -2186,7 +2186,7 @@
   "library": "transformers",
   "downloads": 74,
   "last_commit": "2020-08-18T14:03:36.000Z",
-  "note": "",
+  "note": "HF rollup caution: its pickle import scan labels torch.device, transformers.training_args.TrainingArguments suspicious.",
   "license": ""
  },
  {
@@ -2201,7 +2201,7 @@
   "library": "transformers",
   "downloads": 57,
   "last_commit": "2020-08-18T14:02:17.000Z",
-  "note": "",
+  "note": "HF rollup caution: its pickle import scan labels torch.device, transformers.training_args.TrainingArguments suspicious.",
   "license": ""
  },
  {
@@ -2261,7 +2261,7 @@
   "library": "transformers",
   "downloads": 1234,
   "last_commit": "2020-08-18T14:01:37.000Z",
-  "note": "",
+  "note": "HF rollup caution: its pickle import scan labels torch.device, transformers.training_args.TrainingArguments suspicious.",
   "license": ""
  },
  {
@@ -2276,7 +2276,7 @@
   "library": "transformers",
   "downloads": 9,
   "last_commit": "2021-03-05T03:08:03.000Z",
-  "note": "",
+  "note": "HF rollup caution: its pickle import scan labels torch.device, transformers.training_args.TrainingArguments, transformers.trainer_utils.SchedulerType, transformers.trainer_utils.EvaluationStrategy suspicious.",
   "license": ""
  },
  {
@@ -2291,7 +2291,7 @@
   "library": "transformers",
   "downloads": 6,
   "last_commit": "2021-03-03T16:03:04.000Z",
-  "note": "",
+  "note": "HF rollup caution: its pickle import scan labels transformers.trainer_utils.EvaluationStrategy, torch.device, transformers.training_args.TrainingArguments, transformers.trainer_utils.SchedulerType suspicious.",
   "license": ""
  },
  {
@@ -2306,7 +2306,7 @@
   "library": "transformers",
   "downloads": 7,
   "last_commit": "2021-03-30T18:44:22.000Z",
-  "note": "",
+  "note": "HF rollup caution: its pickle import scan labels transformers.training_args.TrainingArguments, transformers.trainer_utils.SchedulerType, transformers.trainer_utils.EvaluationStrategy, torch.device suspicious.",
   "license": ""
  },
  {
@@ -2321,7 +2321,7 @@
   "library": "transformers",
   "downloads": 5,
   "last_commit": "2021-03-30T19:14:49.000Z",
-  "note": "",
+  "note": "HF rollup caution: its pickle import scan labels transformers.training_args.TrainingArguments, transformers.trainer_utils.SchedulerType, transformers.trainer_utils.EvaluationStrategy, torch.device suspicious.",
   "license": ""
  },
  {
@@ -2336,7 +2336,7 @@
   "library": "transformers",
   "downloads": 26,
   "last_commit": "2021-08-10T01:03:26.000Z",
-  "note": "",
+  "note": "HF rollup caution: its pickle import scan labels transformers.training_args.TrainingArguments, transformers.trainer_utils.SchedulerType, transformers.trainer_utils.EvaluationStrategy, torch.device suspicious.",
   "license": ""
  },
  {
@@ -2351,7 +2351,7 @@
   "library": "sklearn",
   "downloads": 28,
   "last_commit": "2026-03-23T01:52:37.000Z",
-  "note": "",
+  "note": "Weights carry attack-shaped strings (TF-IDF vocabulary keys); verified byte by byte that none is a GLOBAL or STACK_GLOBAL operand. Kept deliberately: a scanner that trips on vocabulary is producing a false positive.",
   "license": ""
  },
  {
@@ -3101,7 +3101,7 @@
   "library": "diffusers",
   "downloads": 0,
   "last_commit": "2023-02-08T10:14:53.000Z",
-  "note": "",
+  "note": "HF rollup caution: its pickle import scan labels _codecs.encode, numpy.ndarray, numpy.dtype, numpy.core.multiarray._reconstruct suspicious.",
   "license": ""
  },
  {
@@ -3161,7 +3161,7 @@
   "library": "morphsql",
   "downloads": 24,
   "last_commit": "2026-07-13T21:24:42.000Z",
-  "note": "",
+  "note": "Weights carry attack-shaped strings (TF-IDF vocabulary keys); verified byte by byte that none is a GLOBAL or STACK_GLOBAL operand. Kept deliberately: a scanner that trips on vocabulary is producing a false positive.",
   "license": "apache-2.0"
  },
  {

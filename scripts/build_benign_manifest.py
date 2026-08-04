@@ -391,6 +391,22 @@ def select(max_repos: int) -> list[dict]:
             rollup = security_rollup(entry)
             if rollup is None:
                 continue
+            # For caution rollups, keep *why* HF's pickle scan flagged the
+            # file, so the manifest records the reason rather than just the
+            # verdict (the reason is nearly always "ordinary sklearn/joblib
+            # constructors are on HF's suspicious list").
+            caution_detail = ""
+            if rollup == "caution":
+                scan = ((entry.get("securityFileStatus") or {})
+                        .get("pickleImportScan") or {})
+                suspicious = [f"{i.get('module')}.{i.get('name')}"
+                              for i in (scan.get("pickleImports") or [])
+                              if i.get("safety") == "suspicious"]
+                if suspicious:
+                    caution_detail = (
+                        "HF rollup caution: its pickle import scan labels "
+                        + ", ".join(suspicious[:6]) + " suspicious."
+                    )
             lfs_sha = (entry.get("lfs") or {}).get("oid", "")
             if lfs_sha and lfs_sha in seen_hashes:
                 continue
@@ -417,6 +433,7 @@ def select(max_repos: int) -> list[dict]:
                 "last_commit": (entry.get("lastCommit") or {}).get("date", ""),
                 "_buckets": [b["fmt"] for b in fits],
                 "_lfs": bool(lfs_sha),
+                "_caution_detail": caution_detail,
             })
             # Reserve optimistically; a failed download rolls this back.
             counts[fits[0]["fmt"]] += 1
@@ -464,6 +481,7 @@ def fetch_and_classify(item: dict) -> tuple[dict | None, str]:
         "size": dest.stat().st_size,
         "hf_scan": item["hf_scan"],
         "last_commit": item["last_commit"],
+        "_caution_detail": item.get("_caution_detail", ""),
     }
     return entry, ""
 
@@ -505,7 +523,7 @@ def main() -> int:
         entry["library"] = meta.get("library_name") or ""
         card = meta.get("cardData") or {}
         entry["license"] = str(card.get("license") or "")
-        entry["note"] = ""
+        entry["note"] = entry.pop("_caution_detail", "")
 
     accepted.sort(key=lambda e: e["id"])
     key_order = ["id", "repo", "path", "sha256", "filename", "fmt", "size",
