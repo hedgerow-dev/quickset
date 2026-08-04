@@ -362,10 +362,37 @@ def main() -> int:
     print("scanners run:", ", ".join(f"{a.name} [{a.license}]" for a in adapters))
 
     if args.json:
+        import hashlib, datetime
+        from pathlib import Path as _Path
+        manifest = _Path(__file__).resolve().parent / "benign-models.json"
+        manifest_sha = hashlib.sha256(manifest.read_bytes()).hexdigest()[:16] if manifest.exists() else "none"
         args.json.write_text(
             json.dumps(
                 {
-                    "scores": [asdict(s) | {"recall": s.recall, "fp_rate": s.fp_rate} for s in scores],
+                    "meta": {
+                        "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                        "manifest_sha256_short": manifest_sha,
+                        "threshold_policy": {  # documented tier contract per adapter
+                            "scan_semantics": (
+                                "Errored files excluded from every numerator and denominator. "
+                                "'strict' counts only the tier each scanner's author calls "
+                                "actionable. '+unknown' adds the tier where the scanner itself "
+                                "declines to stand behind the verdict."
+                            ),
+                            "picklescan": {"strict": "dangerous globals or infected>0",
+                                           "lenient": "strict or suspicious globals > 0"},
+                            "modelscan": {"strict": "CRITICAL or HIGH",
+                                          "lenient": "any issue (its shipped default)"},
+                            "modelaudit": {"strict": "critical",
+                                           "lenient": "warning or critical (its shipped default)"},
+                            "fickling": {"strict": "LIKELY_UNSAFE or above",
+                                         "lenient": "anything above LIKELY_SAFE (its shipped default)"},
+                            "open-rowan": {"strict": "above INFO",
+                                           "lenient": "any finding including INFO"},
+                        },
+                    },
+                    "scores": [asdict(s) | {"recall": s.recall, "fp_rate": s.fp_rate,
+                                            "coverage_rate": s.coverage} for s in scores],
                     "per_case": per_case,
                     "cases": [
                         {
