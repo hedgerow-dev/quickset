@@ -8,3 +8,4 @@ external-cache/
 scripts/.cache/
 sweep-cache/
 sweep-results.json
+safety_results.json

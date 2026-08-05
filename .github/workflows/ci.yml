@@ -24,8 +24,12 @@ jobs:
       # Installed here rather than declared as dependencies: adapters shell out
       # to these, and resolving four scanners' pinned transitive dependencies
       # in one environment is exactly what the subprocess design avoids.
+      # open-rowan is deliberately absent: it is closed source and cannot be
+      # installed from a public runner, so its adapter is the one this job
+      # cannot exercise. Every number it produces here comes from a scanner
+      # anyone can install and re-run.
       - name: Install scanners under test
-        run: pip install picklescan modelscan fickling
+        run: pip install picklescan modelscan fickling modelaudit
 
       - name: Fetch real benign models
         run: python -m quickset.realmodels
