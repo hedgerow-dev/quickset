@@ -6,12 +6,12 @@
   "threshold_policy": "findings above INFO; errored excluded from both counts; a file whose only findings are coverage skips (MFV-SKIP-001/002/003) counts as no-verdict, never as a detection, because the file was never read",
   "models_labeled": 91,
   "coverage": {
-   "read": 85,
-   "no_verdict": 2,
+   "read": 87,
+   "no_verdict": 0,
    "total": 87
   },
-  "detected": 85,
-  "reason_correct": 84
+  "detected": 87,
+  "reason_correct": 86
  },
  "results": [
   {
@@ -251,9 +251,9 @@
    "sink": "Keras.Lambda",
    "findings": [
     {
-     "rule_id": "MFV-SKIP-001",
-     "severity": "low",
-     "message": "Model file exceeds 500MB scan limit (553MB) and is not a ZIP container, so it cannot be scanned without reading it entirely into memory. NOT a clean verdict: the file was never analysed."
+     "rule_id": "MFV-KERAS-001",
+     "severity": "high",
+     "message": "Keras model contains 1 Lambda layer(s): Lambda layer 'output'. Lambda layers embed a marshalled/serialized Python function that executes on model load."
     }
    ]
   },
@@ -456,9 +456,9 @@
    "sink": "Keras.Lambda",
    "findings": [
     {
-     "rule_id": "MFV-SKIP-001",
-     "severity": "low",
-     "message": "Model file exceeds 500MB scan limit (553MB) and is not a ZIP container, so it cannot be scanned without reading it entirely into memory. NOT a clean verdict: the file was never analysed."
+     "rule_id": "MFV-KERAS-001",
+     "severity": "high",
+     "message": "Keras model contains 1 Lambda layer(s): Lambda layer 'output'. Lambda layers embed a marshalled/serialized Python function that executes on model load."
     }
    ]
   },

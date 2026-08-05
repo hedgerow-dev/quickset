@@ -36,6 +36,17 @@ pip install picklescan          # or modelscan, fickling, ...
 python -m quickset.run
 ```
 
+**Python 3.12**, pinned deliberately: modelscan requires `<3.13`, so a newer
+interpreter silently drops it and quietly turns a five-way comparison into a
+four-way one. Any scanner you do not install is skipped rather than scored as
+zero. A run takes a couple of minutes once the corpus is cached.
+
+The malicious half is **generated at run time and never stored**, so a fresh
+clone needs no network for it. The benign half is 215 real models fetched from
+the HuggingFace Hub on first use and pinned by SHA-256; after that
+`python -m quickset.realmodels` verifies the cache offline and re-fetches only
+what is missing or has drifted from its hash.
+
 Every scanner is scored at **two thresholds, always paired**: the strict tier (what the tool's own author calls actionable) and, as a `+unknown` row, the tier that includes its unknown bucket (picklescan's `suspicious`, modelaudit's `warning`, fickling's `SUSPICIOUS`, open-rowan's `INFO`). **Coverage** is the share of files the scanner returned any verdict on at all; errored files are excluded from every numerator and denominator. Measured 2026-08-04:
 
 ```
