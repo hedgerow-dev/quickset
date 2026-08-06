@@ -5,7 +5,7 @@ small. That is what makes its FP number defensible, and also what blinds it:
 219 hand-picked files cannot show FP classes that only appear at scale. This
 script samples model files from the repo trees already cached by
 build_benign_manifest.py (plus any later cache), downloads them, scans every
-one with open-rowan, and aggregates findings by rule.
+one with hayward, and aggregates findings by rule.
 
 Differences from the corpus, deliberately:
 
@@ -30,7 +30,6 @@ import hashlib
 import json
 import shutil
 import subprocess
-import tempfile
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -47,6 +46,13 @@ MODEL_EXTS = (
     ".npy", ".npz", ".msgpack", ".tflite", ".skops",
 )
 MAX_SCAN_SECONDS = 120
+SCANNER = "hayward"
+# hayward's own COVERAGE_RULE_IDS: findings that say the file was not fully
+# read. They are neither detections nor clean verdicts.
+COVERAGE_RULES = frozenset({
+    "MFV-SKIP-001", "MFV-SKIP-002", "MFV-SKIP-003",
+    "MFV-7Z-001", "MFV-GGUF-004",
+})
 
 
 def sha256_of(path: Path) -> str:
@@ -142,30 +148,36 @@ def fetch(item: dict, max_size: int) -> tuple[dict, Path | None, str]:
 
 def scan(args: tuple[dict, Path]) -> dict:
     item, path = args
-    with tempfile.TemporaryDirectory() as tmp:
-        out = Path(tmp) / "report.json"
-        try:
-            proc = subprocess.run(
-                ["open-rowan", "scan", str(path.parent), "--format", "json",
-                 "-o", str(out), "--no-sca", "--no-taint", "--no-cross-file"],
-                capture_output=True, text=True, timeout=MAX_SCAN_SECONDS,
-                check=False,
-            )
-        except subprocess.TimeoutExpired:
-            return {**item, "error": "timeout"}
-        if not out.exists():
-            return {**item, "error": f"no report (rc={proc.returncode})"}
-        try:
-            report = json.loads(out.read_text())
-        except (json.JSONDecodeError, OSError):
-            return {**item, "error": "unparseable report"}
+    try:
+        proc = subprocess.run(
+            [SCANNER, "scan", str(path), "-f", "json"],
+            capture_output=True, text=True, timeout=MAX_SCAN_SECONDS,
+            check=False,
+        )
+    except subprocess.TimeoutExpired:
+        return {**item, "error": "timeout"}
+    try:
+        report = json.loads(proc.stdout)
+    except (json.JSONDecodeError, ValueError):
+        return {**item, "error": f"unparseable report (rc={proc.returncode})"}
+
+    # A file the scanner did not finish reading is not a false-positive
+    # data point either way, so it leaves the sample rather than landing in
+    # the clean pile. The report says so itself.
+    if report.get("coverage_gaps"):
+        return {**item, "error": "coverage gap"}
+
     findings = [
         f for f in report.get("findings", [])
-        if str(f.get("file") or f.get("file_path") or "").endswith(path.name)
-        and str(f.get("severity", "")).lower() != "info"
+        if f.get("rule_id") not in COVERAGE_RULES
     ]
+    # INFO is kept. Dropping it here would make the inclusive threshold
+    # unmeasurable, and the gap between the two thresholds is the single
+    # largest lever on any false-positive number this project publishes.
     return {
         **item,
+        "above_info": any(
+            str(f.get("severity", "")).lower() != "info" for f in findings),
         "findings": [
             {"rule_id": f.get("rule_id"), "severity": f.get("severity"),
              "message": str(f.get("message", ""))[:200]}
@@ -179,6 +191,8 @@ def main() -> int:
     parser.add_argument("--max-files", type=int, default=1500)
     parser.add_argument("--max-size", type=int, default=20_000_000)
     parser.add_argument("--jobs", type=int, default=12)
+    parser.add_argument("--keep", action="store_true",
+                        help="keep downloads instead of deleting after each scan")
     args = parser.parse_args()
 
     candidates = load_candidates()
@@ -188,50 +202,70 @@ def main() -> int:
 
     free = shutil.disk_usage(ROOT).free
     wanted = sum(c["size"] for c in chosen)
-    print(f"~{wanted / 1e9:.2f} GB to download, {free / 1e9:.1f} GB free")
-    if free - wanted < 2 * 1024 ** 3:
+    resident = args.max_size * args.jobs * 2 if not args.keep else wanted
+    print(f"~{wanted / 1e9:.2f} GB to transfer, "
+          f"~{resident / 1e9:.2f} GB resident, {free / 1e9:.1f} GB free")
+    if free - resident < 2 * 1024 ** 3:
         print("REFUSING: would leave less than 2 GB free")
         return 1
 
-    fetched: list[tuple[dict, Path]] = []
-    failures = 0
-    with ThreadPoolExecutor(max_workers=args.jobs) as pool:
-        for i, (item, path, error) in enumerate(
-            pool.map(lambda c: fetch(c, args.max_size), chosen), 1
-        ):
-            if error:
-                failures += 1
-            elif path is not None:
-                fetched.append((item, path))
-            if i % 200 == 0:
-                print(f"  fetched {i}/{len(chosen)} ({failures} failed)")
-    print(f"{len(fetched)} files on disk, {failures} download failures")
+    def fetch_scan_discard(candidate: dict) -> dict:
+        """One file end to end, leaving nothing behind.
+
+        Downloading the whole sample first bounded the sweep by disk. Scanning
+        on arrival and deleting immediately means peak usage is the
+        concurrency window, so the sample size is limited by patience rather
+        than by free space.
+        """
+        item, path, error = fetch(candidate, args.max_size)
+        if error or path is None:
+            return {**item, "error": error or "no path"}
+        try:
+            return scan((item, path))
+        finally:
+            if not args.keep:
+                try:
+                    path.unlink(missing_ok=True)
+                    path.parent.rmdir()
+                except OSError:
+                    pass
 
     results: list[dict] = []
+    failures = 0
     with ThreadPoolExecutor(max_workers=args.jobs) as pool:
-        for i, result in enumerate(pool.map(scan, fetched), 1):
+        for i, result in enumerate(pool.map(fetch_scan_discard, chosen), 1):
             results.append(result)
+            if result.get("error"):
+                failures += 1
             if i % 200 == 0:
-                print(f"  scanned {i}/{len(fetched)}")
+                done = i - failures
+                print(f"  {i}/{len(chosen)} processed, {done} scanned, "
+                      f"{failures} failed", flush=True)
+                RESULTS.write_text(json.dumps(results, indent=1), encoding="utf-8")
 
     RESULTS.write_text(json.dumps(results, indent=1), encoding="utf-8")
 
     from collections import Counter
     by_rule: Counter[str] = Counter()
-    flagged_files = errors = 0
+    flagged_files = inclusive_files = errors = 0
     for r in results:
         if r.get("error"):
             errors += 1
             continue
         findings = r.get("findings") or []
-        if findings:
+        if r.get("above_info"):
             flagged_files += 1
+        if findings:
+            inclusive_files += 1
         for f in findings:
             by_rule[f"{f['rule_id']} ({f['severity']})"] += 1
 
     print()
     print(f"scanned {len(results) - errors}, errored {errors}")
-    print(f"files with >=1 finding above INFO: {flagged_files}")
+    scanned = len(results) - errors
+    pct = lambda n: f"{100 * n / max(scanned, 1):.2f}%"
+    print(f"strict    (above INFO):  {flagged_files}/{scanned}  {pct(flagged_files)}")
+    print(f"inclusive (any finding): {inclusive_files}/{scanned}  {pct(inclusive_files)}")
     print("\nby rule:")
     for rule, n in by_rule.most_common():
         print(f"  {rule:32} {n}")

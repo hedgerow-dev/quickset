@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import pickletools
 import io
+import re
 
 import pytest
 
@@ -75,13 +76,98 @@ def test_malicious_payload_arguments_are_inert(case):
             f"{case.id} must use a .invalid host"
         )
 
+    # Format-agnostic pass, because the opcode walk above sees nothing at all
+    # in a safetensors header, an ONNX protobuf or a GGUF tensor name. An ONNX
+    # case reached this repository pointing at 169.254.169.254, the cloud
+    # instance metadata endpoint, and the suite stayed green because genops
+    # threw on byte 0 and the loop swallowed it. Every case is now checked as
+    # raw bytes as well as by opcode.
+    as_text = blob.decode("latin-1")
+    for host in re.findall(r"https?://([^\s\"'<>\\/]+)", as_text):
+        assert host.endswith(".invalid"), (
+            f"{case.id} names a resolvable host {host!r}. Payload hosts live "
+            f"under .invalid, which RFC 2606 reserves as never-resolvable, "
+            f"because a scanner may fetch what a payload names."
+        )
+    literal_ip = re.search(r"(?<![\d.])\d{1,3}(?:\.\d{1,3}){3}(?![\d.])", as_text)
+    assert literal_ip is None, (
+        f"{case.id} embeds the literal address {literal_ip.group(0)!r}. "
+        f"Use an .invalid hostname: link-local and metadata endpoints are "
+        f"routable from a CI runner and a scanner may resolve them."
+        if literal_ip else ""
+    )
+
+
+GLOBAL_RESOLUTION_OPS = {"GLOBAL", "STACK_GLOBAL", "INST", "OBJ"}
+
+# Tokens a scanner could key on in a case that is not a plain pickle: the
+# resolved name for the archive and compressed formats, the abusive string
+# itself for the traversal and injection ones.
+ABUSIVE_TOKENS = (
+    b"system", b"main", b"getline", b"get_server_certificate", b"attrgetter",
+    b"getattr", b"_make_function", b"Evil", b"../", b".invalid", b"\r\n",
+)
+
+
+def _decompressed(blob: bytes) -> bytes:
+    """joblib writes pickles behind zlib, gzip, bz2, lzma or xz, and a case
+    that only proves something about the compressed envelope proves nothing
+    about the payload inside it."""
+    import bz2
+    import gzip
+    import lzma
+    import zlib
+
+    for codec in (zlib.decompress, gzip.decompress, bz2.decompress, lzma.decompress):
+        try:
+            return codec(blob)
+        except Exception:
+            continue
+    return blob
+
+
+def _resolution_ops(blob: bytes) -> set[str]:
+    """Opcode names across every pickle concatenated in the stream.
+
+    Several cases put the payload in the second or fourth embedded pickle, so
+    stopping at the first STOP would miss exactly what they exist to test.
+    """
+    found: set[str] = set()
+    stream = io.BytesIO(blob)
+    while stream.tell() < len(blob):
+        start = stream.tell()
+        try:
+            for op, _arg, _pos in pickletools.genops(stream):
+                found.add(op.name)
+        except Exception:
+            break
+        if stream.tell() <= start:
+            break
+    return found
+
 
 @pytest.mark.parametrize("case", cases.MALICIOUS, ids=lambda c: c.id)
 def test_malicious_case_actually_contains_a_gadget(case):
     """Guards against a case that scores as a universal miss because the
-    payload is malformed rather than because scanners are evading it."""
-    blob = case.build()
-    assert b"\x93" in blob or b"c" in blob, f"{case.id} has no global-resolution opcode"
+    payload is malformed rather than because scanners are evading it.
+
+    This used to assert `b"\\x93" in blob or b"c" in blob`. A lone `b"c"`
+    occurs in almost any binary, so it passed unconditionally for the skops
+    archives and for every non-pickle case without checking anything. The
+    corpus now spans pickle, safetensors, ONNX, GGUF and five joblib codecs,
+    so the property has to be checked per family: a pickle really resolves a
+    global, and everything else really carries the string it is built around.
+    """
+    blob = _decompressed(case.build())
+
+    if GLOBAL_RESOLUTION_OPS & _resolution_ops(blob):
+        return
+
+    assert any(token in blob for token in ABUSIVE_TOKENS), (
+        f"{case.id} resolves no global and carries no abusive string, so it "
+        f"would score as a miss for every scanner because it is malformed "
+        f"rather than because anything evaded detection"
+    )
 
 
 def test_legacy_layout_hides_payload_after_first_stop():
@@ -102,7 +188,8 @@ def test_legacy_layout_hides_payload_after_first_stop():
 def test_origins_are_declared():
     """Cases invented here are the weakest evidence in the set and have to be
     distinguishable from published ones at a glance."""
-    allowed = {"published-cve", "published-technique", "folklore", "quickset", "real-world"}
+    allowed = {"published-cve", "published-technique", "folklore", "quickset",
+               "real-world", "hub-bypass-poc", "derived"}
     for case in cases.ALL_CASES:
         assert case.origin in allowed, f"{case.id} has an undeclared origin"
     for case in cases.MALICIOUS:

@@ -34,7 +34,14 @@ class ExternalCorpus:
 
     id: str
     name: str
+    # Pinned to a commit, never to a branch head. These corpora are upstream
+    # repositories that keep moving, so `refs/heads/main` meant every number
+    # published against them was measured on a snapshot nobody could name and
+    # nobody could get back. That is the same failure the benign manifest pins
+    # SHA-256 to avoid, and it had no business being treated differently just
+    # because the source is a git host.
     url: str
+    commit: str
     # Archive members under this path are the corpus.
     member_prefix: str
     license: str
@@ -53,7 +60,8 @@ CORPORA: tuple[ExternalCorpus, ...] = (
     ExternalCorpus(
         id="picklescan-tests",
         name="picklescan test corpus",
-        url="https://github.com/mmaitre314/picklescan/archive/refs/heads/main.tar.gz",
+        url="https://github.com/mmaitre314/picklescan/archive/f15d54da3dec9aa28a87ede82f87882bb80f1023.tar.gz",
+        commit="f15d54da3dec9aa28a87ede82f87882bb80f1023",
         member_prefix="tests/data/",
         license="MIT",
         origin="https://github.com/mmaitre314/picklescan",
@@ -82,7 +90,8 @@ CORPORA: tuple[ExternalCorpus, ...] = (
     ExternalCorpus(
         id="picklecloak-exploits",
         name="PickleCloak gadget exploits",
-        url="https://github.com/Lyutoon/PickleCloak/archive/refs/heads/main.tar.gz",
+        url="https://github.com/Lyutoon/PickleCloak/archive/909fff715f065d690c3d5475f324a931d97349fc.tar.gz",
+        commit="909fff715f065d690c3d5475f324a931d97349fc",
         member_prefix="gadget/exploits/malicious_pkls/",
         license="none declared (all rights reserved)",
         origin="https://github.com/Lyutoon/PickleCloak",
@@ -100,7 +109,8 @@ CORPORA: tuple[ExternalCorpus, ...] = (
     ExternalCorpus(
         id="picklecloak-chains",
         name="PickleCloak AEG chains",
-        url="https://github.com/Lyutoon/PickleCloak/archive/refs/heads/main.tar.gz",
+        url="https://github.com/Lyutoon/PickleCloak/archive/909fff715f065d690c3d5475f324a931d97349fc.tar.gz",
+        commit="909fff715f065d690c3d5475f324a931d97349fc",
         member_prefix="gadget/aeg/container/pickles/",
         license="none declared (all rights reserved)",
         origin="https://github.com/Lyutoon/PickleCloak",
@@ -139,9 +149,8 @@ def fetch(corpus: ExternalCorpus) -> int:
         for member in tar.getmembers():
             if not member.isfile():
                 continue
-            # Archive paths start with a repo-name/sha prefix that varies with
-            # the branch head, so match on the suffix rather than the whole
-            # path.
+            # Archive paths start with a repo-name/commit prefix, so match on
+            # the suffix rather than the whole path.
             if corpus.member_prefix not in member.name:
                 continue
             # Flatten into one directory and take only the basename, which

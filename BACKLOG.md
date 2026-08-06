@@ -1,5 +1,100 @@
 # Backlog
 
+## Done (2026-08-06): two adapters were crediting themselves for files never read
+
+Both are the same accounting error, in the harness rather than in any scanner,
+and both produced a plausible number rather than a failure.
+
+* **picklescan.** It declines to read a file in two ways and only one of them
+  says so: a malformed pickle prints `could not parse as pickle`, while a
+  format it has no reader for prints nothing at all and reports
+  `Scanned files: 0`, which is byte-for-byte a clean scan. The adapter caught
+  the first and read the second as a true negative. Measured: 14 benign files
+  (9 keras zip, 3 tflite, 2 skops) were counted as cleared. Published coverage
+  was 91% and is 85%; the false-positive denominator was 198 and is 184.
+  Regression test added to `test_adapters.py`, which needs no fetched corpus:
+  a zip named `.keras` reproduces it.
+* **hayward (formerly open-rowan), and this one is the conflict of interest
+  showing up in code.** The adapter had no way to observe non-coverage at all.
+  It treated any written report as a verdict, so a file the scanner declined
+  to read counted as covered, and since the coverage rules carry a severity,
+  as a *flag*. It was the only one of the five adapters with no non-coverage
+  signal, and it belonged to the entrant this project's author ships, in the
+  column it scored 100% in.
+
+  The fix does not match rule ids. hayward publishes `coverage_gaps` in its
+  own JSON report and its docs say a scorer should count those in a column of
+  their own, so the adapter takes the report's word for it. The hand-kept id
+  list in `scripts/malhug_scan.py` was already two entries stale
+  (`MFV-7Z-001`, `MFV-GGUF-004`), and worse, that script filtered INFO
+  findings out before checking ids, so it could never have matched either of
+  them. Both scripts now read `coverage_gaps` too.
+
+  Pinned by `test_adapters.py` against an eight-byte 7z header, which trips
+  `MFV-7Z-001` with no corpus to fetch. **A perfect coverage column is not
+  evidence the check works. It is what the bug looked like.**
+
+Also landed:
+
+* **Scanner versions are recorded.** `--json` pinned the corpus manifest and
+  nothing about the four tools that produced the numbers. It now records each
+  scanner's version, the interpreter and the platform, and the summary line
+  prints them.
+* **External corpora are pinned to commits.** They were fetched from
+  `refs/heads/main`, so every number published against picklescan's test data
+  and PickleCloak was measured on a snapshot nobody could name or get back.
+  The benign manifest pins SHA-256 for this exact reason. Enforced by a test.
+* **`test_malicious_case_actually_contains_a_gadget` was checking nothing.**
+  It asserted `b"\x93" in blob or b"c" in blob`; a lone `b"c"` occurs in
+  almost any binary, so it passed unconditionally for the skops archives and
+  every non-pickle case. Rewritten per family, and it immediately caught a
+  live case: `safetensors-name-crlf` built its header through `json.dumps`,
+  which escapes the CRLF to the four characters `\r\n`, so the case carried
+  none of what it claimed.
+* **An ONNX case pointed at 169.254.169.254**, the cloud instance metadata
+  endpoint. The inertness rule (`.invalid` hosts, RFC 2606) is the constraint
+  that makes this corpus safe to run in CI, and the inertness test missed it
+  because it only walked pickle opcodes and `genops` throws on byte 0 of a
+  protobuf. Payload now uses `.invalid`, and the test has a format-agnostic
+  raw-bytes pass that rejects any resolvable host or literal IPv4.
+* **`joblib-payload-after-raw-array` is no longer a known miss:** modelaudit
+  flags it at its critical tier. Kept in the corpus; the other three miss it.
+
+## Done (2026-08-06): open-rowan is now hayward
+
+Hayward 1.0.0, MIT, on PyPI. Three consequences beyond the rename:
+
+* **CI can install it.** The previous entrant was closed source and could not
+  be installed on a public runner, so its adapter was the one the CI job could
+  not exercise. That is not a coincidence with the bug above; it is the
+  mechanism. `pip install hayward` is now in the workflow and every number in
+  the README can be reproduced by someone who does not work at Hedgerow.
+* **The adapter got smaller.** It targets the file instead of the parent
+  directory, so there is no sibling-file asymmetry and no filename matching,
+  which is where the historic `file_path` vs `file` bug lived. JSON comes off
+  stdout, so the tempfile dance is gone, as are the `--no-sca --no-taint
+  --no-cross-file` flags: hayward has no source-code passes to switch off.
+* **The table is re-measured and hayward's row is restored:** 25/26 detection,
+  0/219 false positives, 245/245 coverage, 7/219 at the INFO tier.
+
+**It misses `joblib-payload-after-raw-array`, and modelaudit catches it.** That
+is the only case where the scanner this project is built alongside loses
+outright to a competitor, and it is the most useful row in the table. Keep it.
+
+### Still open
+
+* **Ask the same question of modelscan and fickling.** Two of five adapters
+  were found crediting their scanner for unread files, which is not a number
+  that suggests the answer is two.
+* **Re-run the external-corpus block.** It is stale three ways: unpinned
+  branch heads, pre-fix coverage accounting, and the old tool name.
+* **Re-run `scripts/hub_sweep.py` and `scripts/malhug_scan.py`.** Both were
+  invoking an executable that no longer exists and are updated but unrun. The
+  docs in `docs/` still carry numbers from the open-rowan builds.
+* **`model-cache/` holds 92 directories, 0.78 GB, from a previous manifest.**
+  Not scored (`cached_models()` filters by manifest) and not deleted here,
+  since re-fetching costs bandwidth. Left for a decision.
+
 Status as of 2026-08-03: all four adapters now run against live installs and
 the head-to-head is real. The remaining weakness is the corpus: small, and
 disproportionately authored by one person against one scanner. That is a

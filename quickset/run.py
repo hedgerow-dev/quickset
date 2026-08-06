@@ -64,7 +64,7 @@ def run(corpus_dir: Path, jobs: int = 1) -> tuple[list[Score], dict]:
     if not adapters:
         raise SystemExit(
             "No scanners found on PATH. Install at least one of: "
-            "picklescan, modelscan, fickling, open-rowan."
+            "picklescan, modelscan, modelaudit, fickling, hayward."
         )
 
     per_case: dict[str, dict[str, dict]] = {}
@@ -116,11 +116,14 @@ def run(corpus_dir: Path, jobs: int = 1) -> tuple[list[Score], dict]:
     return scores, per_case
 
 
-def run_external(adapters: list[Adapter]) -> list[tuple[object, dict[str, tuple[int, int, int, int]]]]:
+def run_external(
+    adapters: list[Adapter],
+) -> list[tuple[object, dict[str, tuple[int, int, int, int, int, int, int]]]]:
     """Score each fetched external corpus. Returns (corpus, {scanner: counts}).
 
-    Counts are (detected, malicious, false_positives, benign). Files the
-    corpus author does not label are skipped, never guessed at.
+    Counts are (detected, malicious, false_positives, benign,
+    detected_lenient, false_positives_lenient, errors). Files the corpus
+    author does not label are skipped, never guessed at.
     """
     results = []
     for corpus in external_module.CORPORA:
@@ -231,7 +234,7 @@ def _print_verdicts(per_case: dict, names: list[str]) -> None:
             print(f"      {mark}  {name:12} {note[:80]}")
 
 
-def _print_report(scores: list[Score], per_case: dict, adapters: list[Adapter]) -> None:
+def _print_report(scores: list[Score], per_case: dict) -> None:
     names = [s.scanner for s in scores]
     all_cases = case_module.all_cases()
 
@@ -308,7 +311,7 @@ def _print_report(scores: list[Score], per_case: dict, adapters: list[Adapter]) 
     print("Each scanner's main row is its strict threshold: only the tier its")
     print("author calls actionable. The '+unknown' row adds that tool's unknown")
     print("bucket (picklescan's suspicious, modelaudit's warning, fickling's")
-    print("SUSPICIOUS, open-rowan's INFO), the analogue of not-flagged for a")
+    print("SUSPICIOUS, hayward's INFO), the analogue of not-flagged for a")
     print("human triager. Report both thresholds or neither: scoring one tool")
     print("at its top tier while counting another's unknown tier is the")
     print("specific unfairness this table exists to avoid. Run with --verbose")
@@ -318,6 +321,12 @@ def _print_report(scores: list[Score], per_case: dict, adapters: list[Adapter]) 
     print("on. Errored files (parse failures, crashes, zero-file scans) are")
     print("excluded from both numerators and denominators alike: a tool that")
     print("never read the file has no verdict to its name.")
+    print()
+    print("Cases marked KNOWN MISS are detected by nothing here, including")
+    print("the scanner this project is written alongside. They are carried on")
+    print("purpose: a corpus holding only cases its author passes is a corpus")
+    print("that flatters its author. A case losing that mark because someone")
+    print("fixed it is the most useful thing this benchmark can report.")
     print()
 
 
@@ -353,16 +362,21 @@ def main() -> int:
         corpus_note = "(temporary, discarded)"
 
     adapters = [a for a in all_adapters() if a.available()]
-    _print_report(scores, per_case, adapters)
+    # Asked once and reused: "picklescan detects 12/15" is a claim about a
+    # build, and a results file that pins the corpus but not the tools cannot
+    # be checked by anyone later.
+    versions = {a.name: a.version() for a in adapters}
+    _print_report(scores, per_case)
     if args.verbose:
         _print_verdicts(per_case, [s.scanner for s in scores])
     if not args.no_external:
         _print_external(run_external(adapters), [s.scanner for s in scores])
     print(f"corpus: {corpus_note}")
-    print("scanners run:", ", ".join(f"{a.name} [{a.license}]" for a in adapters))
+    print("scanners run:", ", ".join(
+        f"{a.name} {versions[a.name]} [{a.license}]" for a in adapters))
 
     if args.json:
-        import hashlib, datetime
+        import hashlib, datetime, platform, sys
         from pathlib import Path as _Path
         manifest = _Path(__file__).resolve().parent / "benign-models.json"
         manifest_sha = hashlib.sha256(manifest.read_bytes()).hexdigest()[:16] if manifest.exists() else "none"
@@ -372,6 +386,13 @@ def main() -> int:
                     "meta": {
                         "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
                         "manifest_sha256_short": manifest_sha,
+                        "scanners": {
+                            a.name: {"version": versions[a.name], "license": a.license}
+                            for a in adapters
+                        },
+                        "python": platform.python_version(),
+                        "platform": f"{platform.system()} {platform.machine()}",
+                        "interpreter": sys.executable,
                         "threshold_policy": {  # documented tier contract per adapter
                             "scan_semantics": (
                                 "Errored files excluded from every numerator and denominator. "
@@ -387,8 +408,10 @@ def main() -> int:
                                            "lenient": "warning or critical (its shipped default)"},
                             "fickling": {"strict": "LIKELY_UNSAFE or above",
                                          "lenient": "anything above LIKELY_SAFE (its shipped default)"},
-                            "open-rowan": {"strict": "above INFO",
-                                           "lenient": "any finding including INFO"},
+                            "hayward": {"strict": "above INFO",
+                                        "lenient": "any finding including INFO",
+                                        "no_verdict": "any file listed in the "
+                                                      "report's coverage_gaps"},
                         },
                     },
                     "scores": [asdict(s) | {"recall": s.recall, "fp_rate": s.fp_rate,
@@ -410,6 +433,21 @@ def main() -> int:
             ),
             encoding="utf-8",
         )
+    known = [c for c in case_module.all_cases() if getattr(c, "known_miss", False)]
+    if known:
+        print()
+        print("KNOWN MISSES")
+        for case in known:
+            verdicts = per_case.get(case.id, {})
+            detectors = sorted(n for n, v in verdicts.items() if v.get("flagged"))
+            if detectors:
+                print(f"  {case.id}: NOW DETECTED by {', '.join(detectors)}. "
+                      f"Clear known_miss on this case.")
+            else:
+                print(f"  {case.id}: still missed by every scanner.")
+        print()
+
+    if args.json:
         print(f"wrote {args.json}")
 
     return 0

@@ -6,7 +6,10 @@ build-backend = "setuptools.build_meta"
 name = "quickset"
 version = "0.1.0"
 description = "A neutral benchmark for ML model-file scanners: detection and false positives, scored separately."
-requires-python = ">=3.10"
+# Capped at <3.13 deliberately: modelscan requires <3.13, so a newer
+# interpreter resolves without it and quietly turns a five-way comparison into
+# a four-way one. A hard cap fails at install time instead.
+requires-python = ">=3.10,<3.13"
 license = "MIT"
 license-files = ["LICENSE"]
 dependencies = []
@@ -14,7 +17,7 @@ dependencies = []
 [project.optional-dependencies]
 # Scanners are invoked as subprocesses, never imported. Installing them is
 # optional and each is skipped when absent.
-scanners = ["picklescan", "modelscan"]
+scanners = ["picklescan", "modelscan", "fickling", "modelaudit"]
 dev = ["pytest"]
 
 [project.scripts]

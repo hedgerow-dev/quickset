@@ -4,16 +4,16 @@ MalHug (github.com/security-pride/MalHug) is 91 real in-the-wild malicious
 HuggingFace models with per-model labels: the malicious behavior class and
 the library/API used (the sink). Two claims depend on it:
 
-- coverage: how many Rowan actually read. A file it declined to open has no
+- coverage: how many hayward actually read. A file it declined to open has no
   verdict and is excluded from the detection denominator, never counted as a
   detection. See _is_coverage_skip.
-- detection: of the files with a verdict, how many Rowan flags;
-- reason-correctness: when Rowan flags, does the finding name the same sink
+- detection: of the files with a verdict, how many hayward flags;
+- reason-correctness: when hayward flags, does the finding name the same sink
   the corpus author recorded? The 79/80 claim from the first session was
   never re-verified and the corpus was not cached, so it is retired.
 
 Evidence discipline (P3-4): the artifact written by --json pins the corpus
-CSV sha256, the tool commit (open-rowan via PYTHONPATH), the threshold
+CSV sha256, the tool commit (hayward via PYTHONPATH), the threshold
 policy, and the raw per-file outcome. Nothing here may be asserted from a
 session transcript.
 
@@ -24,7 +24,7 @@ Usage:
 Re-running is cheap: fetch_one skips any repo with a .done marker, so an
 existing cache is reused and only the scan and scoring repeat. Put the build
 under test on both PYTHONPATH and PATH, since the scan shells out to the
-open-rowan console script and the editable install otherwise wins.
+hayward console script and the editable install otherwise wins.
 
 Downloads go to external-cache/malhug/ (gitignored), one subdir per repo,
 only the file(s) named in the corpus row.
@@ -38,7 +38,6 @@ import hashlib
 import json
 import shutil
 import subprocess
-import tempfile
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -48,6 +47,7 @@ CACHE = ROOT / "external-cache" / "malhug"
 CSV_URL = "https://raw.githubusercontent.com/security-pride/MalHug/main/malhug_result_info.csv"
 API = "https://huggingface.co"
 TIMEOUT = 120
+SCANNER = "hayward"
 
 
 def fetch_csv() -> tuple[Path, str]:
@@ -106,7 +106,7 @@ def fetch_one(row: dict) -> tuple[str, Path | None, str]:
                 blob = resp.read()
         except Exception as exc:
             continue
-        # Preserve the original basename: Rowan's extension dispatch is
+        # Preserve the original basename: hayward's extension dispatch is
         # name-sensitive (keras_metadata.pb and saved_model.pb are scanned
         # only under those exact names), so a slash-renamed copy would
         # silently unscannable.
@@ -119,22 +119,18 @@ def fetch_one(row: dict) -> tuple[str, Path | None, str]:
 
 
 def scan_dir(repo_dir: Path, row: dict) -> dict:
-    with tempfile.TemporaryDirectory() as tmp:
-        out = Path(tmp) / "report.json"
-        try:
-            proc = subprocess.run(
-                ["open-rowan", "scan", str(repo_dir), "--format", "json", "-o", str(out),
-                 "--no-sca", "--no-taint", "--no-cross-file"],
-                capture_output=True, text=True, timeout=TIMEOUT, check=False,
-            )
-        except subprocess.TimeoutExpired:
-            return {"repo": row["model_id/dataset_id"], "error": "timeout"}
-        if not out.exists():
-            return {"repo": row["model_id/dataset_id"], "error": f"no report rc={proc.returncode}"}
-        try:
-            report = json.loads(out.read_text())
-        except (json.JSONDecodeError, OSError):
-            return {"repo": row["model_id/dataset_id"], "error": "unparseable report"}
+    try:
+        proc = subprocess.run(
+            [SCANNER, "scan", str(repo_dir), "-f", "json"],
+            capture_output=True, text=True, timeout=TIMEOUT, check=False,
+        )
+    except subprocess.TimeoutExpired:
+        return {"repo": row["model_id/dataset_id"], "error": "timeout"}
+    try:
+        report = json.loads(proc.stdout)
+    except (json.JSONDecodeError, ValueError):
+        return {"repo": row["model_id/dataset_id"],
+                "error": f"unparseable report rc={proc.returncode}"}
     findings = [
         f for f in report.get("findings", [])
         if str(f.get("severity", "")).lower() != "info"
@@ -143,6 +139,10 @@ def scan_dir(repo_dir: Path, row: dict) -> dict:
         "repo": row["model_id/dataset_id"],
         "behavior": row["malicious_behaviors"],
         "sink": row["libraries_and_apis"],
+        # Straight from the report. Inferring this from rule ids here missed
+        # the two INFO-severity coverage rules entirely, because the filter
+        # above drops INFO findings before any id is looked at.
+        "coverage_gap": bool(report.get("coverage_gaps")),
         "findings": [
             {"rule_id": f.get("rule_id"), "severity": f.get("severity"),
              "message": str(f.get("message", ""))[:300]}
@@ -151,11 +151,17 @@ def scan_dir(repo_dir: Path, row: dict) -> dict:
     }
 
 
-_COVERAGE_SKIP_RULES = frozenset({"MFV-SKIP-001", "MFV-SKIP-002", "MFV-SKIP-003"})
+# hayward's own COVERAGE_RULE_IDS. The 7z and GGUF entries were missing
+# here while this list was maintained by hand, which is why the harness
+# now reads the report's coverage_gaps array instead of matching ids.
+_COVERAGE_SKIP_RULES = frozenset({
+    "MFV-SKIP-001", "MFV-SKIP-002", "MFV-SKIP-003",
+    "MFV-7Z-001", "MFV-GGUF-004",
+})
 
 
 def _is_coverage_skip(res: dict) -> bool:
-    """True when the only thing Rowan said is that it never read the file.
+    """True when the only thing hayward said is that it never read the file.
 
     MFV-SKIP-001's own message is "NOT a clean verdict: the file was never
     analysed". Two MalHug models are 553MB Keras files that trip the 500MB cap
@@ -164,6 +170,8 @@ def _is_coverage_skip(res: dict) -> bool:
     unparseable files were booked as clean verdicts, only inverted. They are
     scored as no-verdict, which is what the coverage column exists to show.
     """
+    if res.get("coverage_gap"):
+        return True
     findings = res.get("findings") or []
     return bool(findings) and all(
         f.get("rule_id") in _COVERAGE_SKIP_RULES for f in findings
@@ -175,7 +183,7 @@ def _sink_matches(message: str, sink: str) -> bool:
 
     The corpus sink may be a comma list (exec,runpy._run_code), a class
     (Keras.Lambda), or a callable (os.system / posix.system / nt.system /
-    webbrowser.open / eval). Rowan names the resolved global or the layer
+    webbrowser.open / eval). hayward names the resolved global or the layer
     class. Match on the terminal name where possible, with a module-family
     fallback (os == posix == nt). Any one listed sink matching counts."""
     sink = (sink or "").strip()
@@ -254,7 +262,7 @@ def main() -> int:
             "meta": {
                 "corpus": "MalHug",
                 "corpus_csv_sha256": csv_sha,
-                "scanner": "open-rowan (PYTHONPATH defines commit)",
+                "scanner": "hayward (PYTHONPATH defines commit)",
                 "threshold_policy": (
                     "findings above INFO; errored excluded from both counts; "
                     "a file whose only findings are coverage skips "

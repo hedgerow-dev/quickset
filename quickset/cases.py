@@ -38,7 +38,7 @@ from typing import Callable
 
 # Substituted into every payload argument position. Chosen so that a payload
 # which somehow does get unpickled is loud and harmless.
-MARKER = "PICKLEBENCH-INERT-MARKER"
+MARKER = "QUICKSET-INERT-MARKER"
 # RFC 2606 reserves .invalid as never-resolvable. Using it means the network
 # cases are structurally identical to the real gadgets while being incapable of
 # contacting anything.
@@ -112,6 +112,106 @@ class Case:
     reference: str = ""
     notes: str = ""
     tags: tuple[str, ...] = field(default_factory=tuple)
+    known_miss: bool = False
+    """True when no scanner in this benchmark is known to detect the case.
+
+    A corpus containing only cases the author's own tool passes is a corpus
+    that flatters it. These are carried deliberately so the run can report
+    what nobody catches, which is the number this project exists to make
+    visible. A case losing this flag because someone fixed it is the best
+    outcome the benchmark can produce.
+    """
+
+
+
+def _safetensors(tensor_name: str) -> bytes:
+    """A minimal SafeTensors file whose single tensor carries `tensor_name`.
+
+    The header is assembled by hand rather than through json.dumps, because
+    json.dumps escapes precisely the characters these cases are built around:
+    a NUL comes back as the six characters `\\u0000` and a CRLF as the four
+    characters `\\r\\n`, leaving a case that carries none of what it claims
+    and scores as a miss for every scanner. Emitting the raw bytes is also
+    what the published proof of concept does, and a header a strict parser
+    rejects is the point rather than a defect.
+    """
+    import struct
+    header = (
+        b'{"' + tensor_name.encode()
+        + b'":{"dtype":"F32","shape":[4],"data_offsets":[0,16]}}'
+    )
+    return struct.pack("<Q", len(header)) + header + b"\x00" * 16
+
+
+def _pb_len(field_num: int, raw: bytes) -> bytes:
+    """One length-delimited protobuf field, for payloads under 128 bytes."""
+    return bytes([(field_num << 3) | 2, len(raw)]) + raw
+
+
+def _onnx_external_location(location: str) -> bytes:
+    """An ONNX-shaped protobuf whose external_data location is `location`.
+
+    Only the fields the check reads are present. A full ONNX graph would add
+    bytes without adding signal, and every scanner here dispatches on the
+    protobuf structure rather than on a valid graph.
+    """
+    entry = _pb_len(1, b"location") + _pb_len(2, location.encode())
+    tensor = _pb_len(8, entry) + bytes([(9 << 3) | 0, 2])
+    return _pb_len(1, _pb_len(12, tensor)) + b"\x08\x07"
+
+
+def _gguf_tensor_named(tensor_name: str) -> bytes:
+    """A GGUF header declaring one tensor with the given name."""
+    import struct
+    raw = tensor_name.encode()
+    out = b"GGUF" + struct.pack("<IQQ", 3, 1, 0)
+    out += struct.pack("<Q", len(raw)) + raw
+    out += struct.pack("<I", 1) + struct.pack("<Q", 4)
+    out += struct.pack("<I", 0) + struct.pack("<Q", 0)
+    return out + b"\x00" * ((32 - len(out) % 32) % 32) + b"\x00" * 16
+
+
+def _nested_pickle_literal() -> bytes:
+    """An outer pickle carrying an inner pickle as a bytes literal.
+
+    numpy.load(BytesIO(<pickle>)) is the published shape: the outer callable
+    is on no deny list, the outer arguments hold no URL or shell string, and
+    the payload exists only once the inner bytes are themselves unpickled.
+    """
+    inner = _reduce("os", "system", _tuple1(_su(f"echo {MARKER}")))
+    return pickle.dumps({"weights": inner})
+
+
+def _compressed_joblib(codec: str) -> bytes:
+    """A joblib payload behind one of the codecs joblib.dump can write."""
+    import bz2
+    import gzip
+    import lzma
+    import zlib
+    blob = _reduce("os", "system", _tuple1(_su(f"echo {MARKER}")))
+    if codec == "gzip":
+        return gzip.compress(blob)
+    if codec == "bz2":
+        return bz2.compress(blob)
+    if codec == "xz":
+        return lzma.compress(blob, format=lzma.FORMAT_XZ)
+    if codec == "lzma":
+        return lzma.compress(blob, format=lzma.FORMAT_ALONE)
+    return zlib.compress(blob)
+
+
+def _numpy_hidden_payload() -> bytes:
+    """A pickle whose payload sits after raw ndarray bytes in the stream.
+
+    joblib splices raw array data into the opcode stream, so a walker that
+    stops at the first unparseable byte never reaches what follows.
+    """
+    import struct
+    import zlib
+    head = pickle.dumps({"description": "weights follow"})
+    filler = b"\x00\x01\x02\x03" * 2048
+    tail = _reduce("os", "system", _tuple1(_su(f"echo {MARKER}")))
+    return zlib.compress(head + struct.pack("<I", len(filler)) + filler + tail)
 
 
 # ── Malicious cases ─────────────────────────────────────────────────
@@ -410,6 +510,149 @@ MALICIOUS: tuple[Case, ...] = (
                 "func": "run",
             },
         }),
+    ),
+    # ── Shapes taken from published bypass corpora ──────────────────
+    #
+    # Four repositories on the HuggingFace Hub ship proof-of-concept payloads
+    # aimed at model scanners. The shapes are reproduced here rather than the
+    # files vendored: a hub repository can be deleted, and this corpus stores
+    # nothing malicious by design.
+    Case(
+        id="safetensors-name-traversal",
+        filename="model.safetensors",
+        malicious=True,
+        technique="Tensor name is a relative path escaping the model directory.",
+        origin="hub-bypass-poc",
+        reference="vellaveto/joblib-scanner-bypass-poc",
+        notes="A tensor name looks inert until tooling writes it to a file, "
+              "which shard converters and save_pretrained round trips do.",
+        tags=("path-traversal", "safetensors"),
+        build=lambda: _safetensors("../../../tmp/pwned"),
+    ),
+    Case(
+        id="safetensors-name-nul",
+        filename="model.safetensors",
+        malicious=True,
+        technique="Tensor name carries an embedded NUL ahead of a path.",
+        origin="hub-bypass-poc",
+        reference="vellaveto/joblib-scanner-bypass-poc",
+        notes="Truncation at the NUL is what makes the rest of the name land "
+              "somewhere the validator never looked.",
+        tags=("path-traversal", "safetensors"),
+        build=lambda: _safetensors("weight\x00../../etc/passwd"),
+    ),
+    Case(
+        id="safetensors-name-crlf",
+        filename="model.safetensors",
+        malicious=True,
+        technique="Tensor name carries a newline, forging a record boundary.",
+        origin="hub-bypass-poc",
+        reference="vellaveto/joblib-scanner-bypass-poc",
+        tags=("injection", "safetensors"),
+        build=lambda: _safetensors("weight\r\nX-Injected: true"),
+    ),
+    Case(
+        id="gguf-tensor-name-traversal",
+        filename="model.gguf",
+        malicious=True,
+        technique="GGUF tensor name is a relative path escaping the directory.",
+        origin="hub-bypass-poc",
+        reference="vellaveto/joblib-scanner-bypass-poc",
+        tags=("path-traversal", "gguf"),
+        build=lambda: _gguf_tensor_named("../../../etc/passwd"),
+    ),
+    Case(
+        id="onnx-external-data-ssrf",
+        filename="model.onnx",
+        malicious=True,
+        technique="external_data location is a URL, so loading the model "
+                  "fetches it.",
+        origin="hub-bypass-poc",
+        reference="vellaveto/joblib-scanner-bypass-poc",
+        notes="The published payload points at 169.254.169.254, the cloud "
+              "instance metadata endpoint, so a load lifts credentials. That "
+              "address is NOT reproduced here: the whole premise of this "
+              "corpus is that a scanner may resolve or fetch what a payload "
+              "names, and pointing one at a live link-local endpoint from a "
+              "CI runner is the one thing every other case is built to avoid. "
+              "The path shape is what a scanner matches on, so an .invalid "
+              "host measures the same rule.",
+        tags=("ssrf", "onnx"),
+        build=lambda: _onnx_external_location(
+            f"{INERT_URL}/latest/meta-data/"),
+    ),
+    Case(
+        id="onnx-external-data-traversal",
+        filename="model.onnx",
+        malicious=True,
+        technique="external_data location escapes the model directory.",
+        origin="hub-bypass-poc",
+        reference="ScanMe/test-models",
+        tags=("path-traversal", "onnx"),
+        build=lambda: _onnx_external_location("../../../../etc/passwd"),
+    ),
+    Case(
+        id="nested-pickle-literal",
+        filename="model.pkl",
+        malicious=True,
+        technique="A second pickle stream carried as a bytes literal.",
+        origin="hub-bypass-poc",
+        reference="ScanMe/test-models (numpy_load.pkl)",
+        notes="numpy.load(BytesIO(<pickle>)) is the shape. The outer callable "
+              "is on no deny list and the outer arguments hold no URL or "
+              "shell string, so name-based and argument-based checks both "
+              "pass. The payload exists only one level down.",
+        tags=("deny-list-bypass", "nested"),
+        build=_nested_pickle_literal,
+    ),
+    Case(
+        id="joblib-lzma-payload",
+        filename="model.joblib",
+        malicious=True,
+        technique="joblib payload behind lzma rather than zlib.",
+        origin="hub-bypass-poc",
+        reference="vellaveto/joblib-scanner-bypass-poc (payload2_lzma_rce)",
+        notes="joblib.dump accepts zlib, gzip, bz2, lzma and xz. A scanner "
+              "sniffing only zlib hands the pickle walker a compressed blob, "
+              "finds no opcodes, and reports clean.",
+        tags=("compression", "joblib"),
+        build=lambda: _compressed_joblib("lzma"),
+    ),
+    Case(
+        id="joblib-bz2-payload",
+        filename="model.joblib",
+        malicious=True,
+        technique="joblib payload behind bz2.",
+        origin="derived",
+        reference="Same class as the published lzma proof of concept.",
+        tags=("compression", "joblib"),
+        build=lambda: _compressed_joblib("bz2"),
+    ),
+    Case(
+        id="joblib-xz-payload",
+        filename="model.joblib",
+        malicious=True,
+        technique="joblib payload behind xz.",
+        origin="derived",
+        reference="Same class as the published lzma proof of concept.",
+        tags=("compression", "joblib"),
+        build=lambda: _compressed_joblib("xz"),
+    ),
+    Case(
+        id="joblib-payload-after-raw-array",
+        filename="model.joblib",
+        malicious=True,
+        technique="Payload sits after raw ndarray bytes in the pickle stream.",
+        origin="hub-bypass-poc",
+        reference="vellaveto/joblib-scanner-bypass-poc (payload3_hidden_in_numpy)",
+        notes="joblib splices raw array data into the opcode stream, so a "
+              "walker that stops at the first unparseable byte never reaches "
+              "what follows. Carried as a known miss when it was added; "
+              "modelaudit flags it at its critical tier as of 2026-08-06, so "
+              "the flag is cleared. It stays in the corpus because the other "
+              "three scanners still miss it.",
+        tags=("resync", "joblib"),
+        build=_numpy_hidden_payload,
     ),
 )
 

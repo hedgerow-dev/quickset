@@ -10,6 +10,8 @@ adding that.
 
 from __future__ import annotations
 
+import re
+
 import pytest
 
 from quickset import external
@@ -27,6 +29,18 @@ def test_every_corpus_declares_provenance():
 def test_corpus_ids_are_unique():
     ids = [c.id for c in external.CORPORA]
     assert len(ids) == len(set(ids))
+
+
+def test_every_corpus_is_pinned_to_a_commit():
+    """A branch head is not a corpus. These repositories keep moving, so a
+    `refs/heads/main` archive meant every published number was measured on a
+    snapshot nobody could name and nobody could fetch again. The benign
+    manifest pins SHA-256 for exactly this reason and the external half had no
+    business being treated differently."""
+    for corpus in external.CORPORA:
+        assert re.fullmatch(r"[0-9a-f]{40}", corpus.commit), corpus.id
+        assert corpus.commit in corpus.url, corpus.id
+        assert "refs/heads/" not in corpus.url, corpus.id
 
 
 class TestLabelling:

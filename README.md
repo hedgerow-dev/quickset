@@ -23,7 +23,7 @@ So this is not filling a vacuum. What it appears to do that the above do not:
 
 - **Ships no malicious files.** MalHug and PickleCloak distribute real malicious models. Here payloads are generated at run time and are inert by construction.
 - **Scores false positives against real benign models**, not detection alone. PickleBall's benign half is 2 models.
-- **Treats parser coverage as a separate axis** from gadget recognition: whether a scanner reads the file at all (legacy multi-pickle layout, `.bin` dispatch, `EXT1` stack desync, `DUP` amplification). Four such bugs in Rowan were found this way, and none are about which callables are on a list.
+- **Treats parser coverage as a separate axis** from gadget recognition: whether a scanner reads the file at all (legacy multi-pickle layout, `.bin` dispatch, `EXT1` stack desync, `DUP` amplification). Four such bugs in Hayward (then named open-rowan) were found this way, and none are about which callables are on a list.
 - **Runs the shipped CLIs at shipped defaults**, so it measures what a user actually gets.
 
 Whether that justifies a separate project rather than contributing cases upstream to one of the above is open, and not something this README should pretend to have settled.
@@ -47,22 +47,30 @@ the HuggingFace Hub on first use and pinned by SHA-256; after that
 `python -m quickset.realmodels` verifies the cache offline and re-fetches only
 what is missing or has drifted from its hash.
 
-Every scanner is scored at **two thresholds, always paired**: the strict tier (what the tool's own author calls actionable) and, as a `+unknown` row, the tier that includes its unknown bucket (picklescan's `suspicious`, modelaudit's `warning`, fickling's `SUSPICIOUS`, open-rowan's `INFO`). **Coverage** is the share of files the scanner returned any verdict on at all; errored files are excluded from every numerator and denominator. Measured 2026-08-04:
+Every scanner is scored at **two thresholds, always paired**: the strict tier (what the tool's own author calls actionable) and, as a `+unknown` row, the tier that includes its unknown bucket (picklescan's `suspicious`, modelaudit's `warning`, fickling's `SUSPICIOUS`, hayward's `INFO`). **Coverage** is the share of files the scanner returned any verdict on at all; errored files are excluded from every numerator and denominator. Measured 2026-08-06 on Python 3.12.13, with picklescan 1.0.5, modelscan 0.8.8, modelaudit 0.2.52, fickling 0.1.12 and hayward 1.0.0:
 
 ```
 scanner                detection        false positives    coverage
 -------------------------------------------------------------------------
-picklescan             12/15 (80%)      1/198 (1%)         213/234 (91%)
-picklescan +unknown    13/15 (87%)      38/198 (19%)
-modelscan              5/12 (42%)       0/79 (0%)          91/234 (39%)
-modelaudit             13/15 (87%)      13/219 (6%)        234/234 (100%)
-modelaudit +unknown    14/15 (93%)      94/219 (43%)
-fickling               11/11 (100%)     88/90 (98%)        101/234 (43%)
-open-rowan             15/15 (100%)     0/219 (0%)         234/234 (100%)
-open-rowan +unknown    15/15 (100%)     7/219 (3%)
+picklescan             12/24 (50%)      1/184 (1%)         208/245 (85%)
+picklescan +unknown    13/24 (54%)      38/184 (21%)
+modelscan              5/13 (38%)       0/79 (0%)          92/245 (38%)
+modelaudit             18/26 (69%)      13/219 (6%)        245/245 (100%)
+modelaudit +unknown    22/26 (85%)      94/219 (43%)
+fickling               16/17 (94%)      88/90 (98%)        107/245 (44%)
+hayward                25/26 (96%)      0/219 (0%)         245/245 (100%)
+hayward +unknown       25/26 (96%)      7/219 (3%)
 ```
 
-Read the coverage column first: modelscan silently read zero files on 143 of 234 (mostly a removed private numpy API in its joblib path), fickling produced nothing on 132, and picklescan failed to parse 21. Only modelaudit and open-rowan returned a verdict on everything. A scanner that never read the file has no verdict to its name.
+Read the coverage column first: modelscan silently read zero files on 153 of 245 (mostly a removed private numpy API in its joblib path), fickling produced nothing on 138, and picklescan returned no verdict on 37. Only modelaudit and hayward returned a verdict on everything. A scanner that never read the file has no verdict to its name.
+
+**The case hayward misses is the one worth looking at.** `joblib-payload-after-raw-array` puts the gadget after raw ndarray bytes in the pickle stream, so a walker that stops at the first unparseable byte never reaches it. modelaudit flags it at its critical tier and hayward does not, which makes it the only case here where the scanner this project is built alongside loses outright to a competitor. It is also the reason to distrust the rest of the column less: a corpus where the author's tool wins everything is a corpus that was written to let it.
+
+These numbers are not comparable to those published on 2026-08-04, for three reasons at once:
+
+- The corpus grew by eleven cases drawn from published hub bypass proofs of concept, which lowered every detection rate.
+- **picklescan had been credited with clean verdicts on files it never opened.** It declines to read a file in two ways and only one of them says so, printing `could not parse as pickle` for a malformed pickle but nothing at all for a format it has no reader for (measured: keras zip, tflite, skops). The adapter caught the first and read the second as a clean scan. Fourteen benign files moved from true negatives to errors, dropping coverage from 91% to 85% and the false-positive denominator from 198 to 184.
+- **`open-rowan` is now `hayward`, and its adapter could not observe non-coverage at all.** It treated any written report as a verdict, so a file the scanner declined to read counted as covered, and since the coverage rules carry a severity, as a finding. That was the one asymmetry the coverage column exists to rule out, in the entrant this project's author ships. The adapter now reads the `coverage_gaps` array hayward puts in its own report, and `tests/test_adapters.py` pins it against an eight-byte file that triggers one. A perfect coverage column is not evidence the check works; it is what the bug looked like.
 
 ### Scored against externally-authored corpora
 
@@ -74,7 +82,8 @@ python -m quickset.run          # scores them alongside the built-in corpus
 python -m quickset.external --purge   # delete; they are working exploits
 ```
 
-They are gitignored, never committed, and never loaded or unpickled. Ground truth comes from each corpus author's own labelling; a file whose label the author does not state is excluded from scoring rather than assigned one.
+They are gitignored, never committed, and never loaded or unpickled. Ground truth comes from each corpus author's own labelling; a file whose label the author does not state is excluded from scoring rather than assigned one. Each is **pinned to an upstream commit**, not to a branch head: these repositories keep moving, and an unpinned fetch meant the numbers below were measured on a snapshot nobody could name or get back. 
+**The figures below are stale in three ways and should be re-run before anyone quotes them.** They were measured against unpinned branch heads, before the coverage-accounting fixes to the picklescan and hayward adapters, and while hayward was still called open-rowan. The rows are left labelled as they were measured rather than relabelled to a tool version that did not produce them.
 
 ```
 picklescan tests/data (36 malicious):   picklescan 34 (94%) strict / 36 (100%) incl. unknown
@@ -123,11 +132,13 @@ Results worth singling out because they are about the tools, not the corpus:
 
 ## Conflict of interest
 
-This was built at Hedgerow, which makes Rowan, which is one of the entrants. That is a real conflict and pretending otherwise would be worse than disclosing it.
+This was built at Hedgerow, which makes Hayward, which is one of the entrants. That is a real conflict and pretending otherwise would be worse than disclosing it.
 
-What is done about it: Rowan is invoked through the same subprocess adapter as everything else, with no import-level access and no special casing. Both parser-coverage cases were found by this corpus catching Rowan missing them, and Rowan's failures are in the results above and in git history rather than fixed quietly before first publication. The corpus is intended to be contributor-driven, and a case that Rowan fails is the most valuable contribution anyone can make.
+What is done about it: Hayward is invoked through the same subprocess adapter as everything else, with no import-level access and no special casing. Both parser-coverage cases were found by this corpus catching it missing them, and its failures are in the results above and in git history rather than fixed quietly before first publication. It is MIT and on PyPI, so unlike its predecessor a public CI runner can install it and every number above can be reproduced by someone who does not work here. The corpus is intended to be contributor-driven, and a case Hayward fails is the most valuable contribution anyone can make.
 
-If you do not trust the numbers, the harness is thirty lines and you can run it yourself. That is the point of it being open.
+The most recent thing it caught is in the results table above: Hayward's adapter was the only one of the five with no way to observe the scanner declining to read a file, which flattered exactly the column it looked best in. That is what a conflict of interest looks like in practice. It does not arrive as a thumb on the scale, it arrives as the one adapter nobody thought to check.
+
+If you do not trust the numbers, `run.py` and `adapters.py` are about 850 lines between them, `--json` records every scanner's version alongside the results, and you can run the whole thing yourself. That is the point of it being open.
 
 ## Adding a case
 
@@ -139,13 +150,15 @@ Useful cases are ones where scanners disagree. A case every scanner catches meas
 
 Add an `Adapter` to `quickset/adapters.py` implementing `scan(path) -> ScanOutcome`.
 
-Then run `tests/test_adapters.py`, which is the most important file here. During development the Rowan adapter read a JSON field named `file_path` when the actual field was `file`. Every lookup returned nothing, and the harness confidently printed `0/9 (0%)` for a scanner that detects 9 of 9. Nothing crashed. A benchmark's characteristic failure is not a crash, it is a plausible number, so every adapter is pinned against a file its scanner certainly flags and one it certainly does not.
+Then run `tests/test_adapters.py`, which is the most important file here. During development the Hayward adapter read a JSON field named `file_path` when the actual field was `file`. Every lookup returned nothing, and the harness confidently printed `0/9 (0%)` for a scanner that detects 9 of 9. Nothing crashed. A benchmark's characteristic failure is not a crash, it is a plausible number, so every adapter is pinned against a file its scanner certainly flags and one it certainly does not.
 
-The same class of error bites at the build level: an editable install pointed at a different checkout than the one under test, and the first "real" result scored the wrong build of Rowan entirely. Check which build you are actually measuring before believing a number.
+The same class of error bites at the build level: an editable install pointed at a different checkout than the one under test, and the first "real" result scored the wrong build of the scanner entirely. Check which build you are actually measuring before believing a number.
 
 ## Status
 
-Early, and its premise needs revisiting in light of the prior art above. The corpus is small and pickle-focused. Worth adding: Keras Lambda layers, ONNX custom operators, GGUF chat-template injection, and the ShadowPickle attack classes. [ModelAudit](https://www.promptfoo.dev/blog/open-sourcing-modelaudit/) (Promptfoo) is a fifth scanner with no adapter here yet.
+Early, and its premise needs revisiting in light of the prior art above. The corpus is still mostly pickle. Worth adding: Keras Lambda layers, ONNX custom operators, GGUF chat-template injection, and the ShadowPickle attack classes. [ModelAudit](https://www.promptfoo.dev/blog/open-sourcing-modelaudit/) (Promptfoo) now has an adapter and is in the table above.
+
+The open item is the external-corpus block, which is stale on three counts and needs re-running. Beyond that, two of the five adapters have now been caught crediting their scanner for files it never read, both in the harness rather than in the scanners, which is not a count that suggests the answer is two. modelscan and fickling deserve the same audit.
 
 ## Licence
 

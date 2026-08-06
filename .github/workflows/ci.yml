@@ -22,14 +22,17 @@ jobs:
         run: pip install -e ".[dev]"
 
       # Installed here rather than declared as dependencies: adapters shell out
-      # to these, and resolving four scanners' pinned transitive dependencies
+      # to these, and resolving five scanners' pinned transitive dependencies
       # in one environment is exactly what the subprocess design avoids.
-      # open-rowan is deliberately absent: it is closed source and cannot be
-      # installed from a public runner, so its adapter is the one this job
-      # cannot exercise. Every number it produces here comes from a scanner
-      # anyone can install and re-run.
+      #
+      # hayward is in this list now. Its predecessor open-rowan was closed
+      # source and could not be installed from a public runner, which left the
+      # one adapter this job could not exercise as the one belonging to the
+      # entrant this project's author ships. That gap is how its coverage
+      # accounting stayed broken. Every number produced here now comes from a
+      # scanner anyone can install and re-run.
       - name: Install scanners under test
-        run: pip install picklescan modelscan fickling modelaudit
+        run: pip install picklescan modelscan fickling modelaudit hayward
 
       - name: Fetch real benign models
         run: python -m quickset.realmodels

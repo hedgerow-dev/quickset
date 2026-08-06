@@ -38,7 +38,7 @@ class ScanOutcome:
 
     `flagged` is the strict threshold: only the tier its author calls
     actionable. `flagged_lenient` additionally counts the tool's *unknown*
-    bucket (picklescan's "suspicious", modelaudit's "warning", Rowan's INFO,
+    bucket (picklescan's "suspicious", modelaudit's "warning", hayward's INFO,
     fickling's SUSPICIOUS), the tier each tool itself declines to stand
     behind. None means the tool has no distinguishable unknown tier, so both
     thresholds are the same. Scoring one tool at its top tier while counting
@@ -61,6 +61,35 @@ class Adapter:
 
     def available(self) -> bool:
         return shutil.which(self.executable) is not None
+
+    def version(self) -> str:
+        """The scanner's own version string.
+
+        A results file that pins the corpus but not the tools is not evidence
+        of anything: "picklescan detects 12/15" is a claim about a build. Most
+        of these answer `--version`; picklescan has no such flag and prints
+        its usage instead, so fall back to the installed distribution metadata
+        (the documented install puts the scanners in the same environment as
+        quickset). Never fails a run: an unknown version is recorded as
+        unknown rather than raising.
+        """
+        proc = self._run(self.executable, "--version")
+        line = _first_line(proc.stdout + proc.stderr)
+        if proc.returncode == 0 and line and not line.lower().startswith("usage:"):
+            # Some print "<name>, version 1.2.3" and some "<name> 1.2.3";
+            # the report already says which scanner this is.
+            _, _, tail = line.rpartition("version ")
+            value = (tail or line).strip()
+            prefix = f"{self.executable} "
+            if value.lower().startswith(prefix.lower()):
+                value = value[len(prefix):].strip()
+            return value
+        try:
+            from importlib.metadata import version as _dist_version
+
+            return _dist_version(self.name)
+        except Exception:
+            return "unknown"
 
     def scan(self, path: Path) -> ScanOutcome:  # pragma: no cover - overridden
         raise NotImplementedError
@@ -110,22 +139,28 @@ class PicklescanAdapter(Adapter):
             return ScanOutcome(flagged=False, detail="timed out", errored=True)
         text = proc.stdout + proc.stderr
         # picklescan prints "dangerous import '<x>' FOUND" per hit and summary
-        # lines for "Infected files:", "Suspicious globals:" and "Dangerous
-        # globals:". "Suspicious" is picklescan's own unknown bucket: the
-        # strict threshold counts dangerous only.
+        # lines for "Scanned files:", "Infected files:", "Suspicious globals:"
+        # and "Dangerous globals:". "Suspicious" is picklescan's own unknown
+        # bucket: the strict threshold counts dangerous only.
         #
-        # A parse failure prints "could not parse as pickle" (or similar)
-        # alongside "Infected files: 0", which reads exactly like a clean
-        # verdict. Measured on the benign corpus: 95 files. A file picklescan
-        # could not read is not a file it cleared, so it is an error here,
-        # same as modelaudit's "no scanner matched".
+        # picklescan declines to read a file in two ways, and only one of them
+        # says so. A parse failure prints "could not parse as pickle" next to
+        # "Infected files: 0". A format it has no reader for at all (measured:
+        # keras zip, tflite, skops) prints nothing and reports "Scanned files:
+        # 0", which is byte-for-byte a clean verdict. Both are files picklescan
+        # never read, so both are errors here, same as modelscan's
+        # total_scanned == 0 and modelaudit's empty scanner_names.
         dangerous = "FOUND" in text
         infected = 0
         suspicious = 0
+        scanned: int | None = None
         parse_failed = False
         for line in text.splitlines():
             stripped = line.strip()
-            if stripped.startswith("Infected files:"):
+            if stripped.startswith("Scanned files:"):
+                with_digits = stripped.split(":", 1)[1].strip()
+                scanned = int(with_digits) if with_digits.isdigit() else None
+            elif stripped.startswith("Infected files:"):
                 with_digits = stripped.split(":", 1)[1].strip()
                 infected = int(with_digits) if with_digits.isdigit() else 0
             elif stripped.startswith("Suspicious globals:"):
@@ -140,6 +175,10 @@ class PicklescanAdapter(Adapter):
                 flagged=False,
                 detail=_first_signal(text, "parse") or "parse failure",
                 errored=True,
+            )
+        if scanned == 0:
+            return ScanOutcome(
+                flagged=False, detail="scanned 0 files", errored=True,
             )
         flagged = dangerous or infected > 0
         return ScanOutcome(
@@ -340,50 +379,54 @@ class ModelAuditAdapter(Adapter):
         )
 
 
-class OpenRowanAdapter(Adapter):
-    """Included so this benchmark can be run against Rowan like any other
-    entrant. It gets no special treatment and no import-level access: same
-    subprocess contract, same scoring, and it is skipped when absent exactly
-    like the rest.
+class HaywardAdapter(Adapter):
+    """Hedgerow's Hayward, the model-file scanner this project is built
+    alongside. It gets no special treatment and no import-level access: same
+    subprocess contract, same scoring, skipped when absent exactly like the
+    rest. It is MIT and on PyPI, so unlike its predecessor a public CI runner
+    can install it and re-measure every number below.
     """
 
     def __init__(self) -> None:
-        object.__setattr__(self, "name", "open-rowan")
-        object.__setattr__(self, "license", "see project")
-        object.__setattr__(self, "executable", "open-rowan")
+        object.__setattr__(self, "name", "hayward")
+        object.__setattr__(self, "license", "MIT")
+        object.__setattr__(self, "executable", "hayward")
 
     def scan(self, path: Path) -> ScanOutcome:
-        # Rowan writes a banner and log lines to stdout alongside the report,
-        # so JSON has to be captured via -o rather than scraped from stdout.
-        # The --no-* flags switch off Rowan's source-code passes (SCA, taint,
-        # cross-file), which have no counterpart in the other entrants; leaving
-        # them on would score Rowan on work nobody else is doing and make each
-        # case take an Opengrep run.
-        with tempfile.TemporaryDirectory() as tmp:
-            out = Path(tmp) / "report.json"
-            proc = self._run(
-                self.executable, "scan", str(path.parent),
-                "--format", "json", "-o", str(out),
-                "--no-sca", "--no-taint", "--no-cross-file",
-            )
-            if proc.returncode == TIMED_OUT_RETURNCODE:
-                return ScanOutcome(flagged=False, detail="timed out", errored=True)
-            if not out.exists():
-                return ScanOutcome(flagged=False, detail="no report written", errored=True)
-            try:
-                report = json.loads(out.read_text(encoding="utf-8"))
-            except (json.JSONDecodeError, ValueError, OSError):
-                return ScanOutcome(flagged=False, detail="unparseable report", errored=True)
+        # Targets the file rather than its parent directory. The predecessor
+        # scanned the parent and then filtered findings by filename, which was
+        # both an asymmetry (it alone saw sibling files) and the site of the
+        # `file_path` vs `file` bug that scored it 0/9 on a corpus it detects
+        # 9/9 of. One file in, one report out, nothing to match up.
+        proc = self._run(self.executable, "scan", str(path), "-f", "json")
+        if proc.returncode == TIMED_OUT_RETURNCODE:
+            return ScanOutcome(flagged=False, detail="timed out", errored=True)
+        try:
+            report = json.loads(proc.stdout)
+        except (json.JSONDecodeError, ValueError):
+            return ScanOutcome(flagged=False, detail="unparseable report", errored=True)
 
-        # Rowan's JSON reporter names the location field "file". Getting this
-        # wrong scored it 0/9 on a corpus it actually detects 9/9 of, which is
-        # the single most likely way a benchmark like this produces a
-        # confidently wrong headline number -- hence test_adapters.py, which
-        # pins each adapter against a known-flagged and known-clean file.
+        # Hayward states non-coverage in the report rather than leaving it to
+        # be inferred: `coverage_gaps` lists the files it could not fully read,
+        # and its own docs say a scorer should count them in a column of their
+        # own. Taking the report's word for it is better than matching rule ids
+        # here, which is what the previous adapter did not do at all -- a file
+        # it declined to read counted as covered, and since MFV-SKIP-001/2/3
+        # are LOW, as a flag.
+        #
+        # A file with a real finding *and* a coverage gap was still read well
+        # enough to find something, so the finding wins and only a gap on its
+        # own is a no-verdict.
+        gaps = {str(g) for g in (report.get("coverage_gaps") or [])}
         findings_all = [
             f for f in report.get("findings", [])
-            if str(f.get("file") or f.get("file_path") or "").endswith(path.name)
+            if f.get("rule_id") not in _HAYWARD_COVERAGE_RULES
         ]
+        if not findings_all and gaps:
+            return ScanOutcome(
+                flagged=False, detail="coverage gap, file not fully read", errored=True,
+            )
+
         findings = [
             f for f in findings_all
             if str(f.get("severity", "")).lower() != "info"
@@ -402,6 +445,16 @@ class OpenRowanAdapter(Adapter):
 
 
 _SEVERITY_ORDER = ["info", "low", "medium", "high", "critical"]
+
+# Hayward's own COVERAGE_RULE_IDS, duplicated because importing the scanner
+# under test is exactly what the subprocess contract exists to avoid. Only
+# needed to keep a coverage finding from being scored as a detection; the
+# errored decision reads the report's `coverage_gaps` and so stays correct
+# even if this list falls behind.
+_HAYWARD_COVERAGE_RULES = frozenset({
+    "MFV-SKIP-001", "MFV-SKIP-002", "MFV-SKIP-003",
+    "MFV-7Z-001", "MFV-GGUF-004",
+})
 
 _FICKLING_SEVERITY_ORDER = {
     "LIKELY_SAFE": 0,
@@ -429,5 +482,5 @@ def all_adapters() -> list[Adapter]:
         ModelscanAdapter(),
         ModelAuditAdapter(),
         FicklingAdapter(),
-        OpenRowanAdapter(),
+        HaywardAdapter(),
     ]

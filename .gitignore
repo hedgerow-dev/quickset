@@ -7,5 +7,5 @@ model-cache/
 external-cache/
 scripts/.cache/
 sweep-cache/
-sweep-results.json
+sweep-results*.json
 safety_results.json
