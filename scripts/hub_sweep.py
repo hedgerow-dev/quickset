@@ -30,6 +30,8 @@ import hashlib
 import json
 import shutil
 import subprocess
+import time
+import urllib.error
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -53,6 +55,44 @@ COVERAGE_RULES = frozenset({
     "MFV-SKIP-001", "MFV-SKIP-002", "MFV-SKIP-003",
     "MFV-7Z-001", "MFV-GGUF-004",
 })
+
+
+# Token locations, in order. Optional by design: a published result must be
+# reproducible by someone who has none, so this never becomes a requirement.
+# What it buys is measured rather than assumed. An unauthenticated sweep of
+# 2,482 files lost ~110 of them to IncompleteRead and dropped connections,
+# against 0 on the previous run, which made two runs of the same corpus
+# non-comparable (2,456 scanned versus 2,344).
+_TOKEN_PATHS = (
+    Path.home() / ".cache" / "hayward-sweep" / "hf_token",
+    Path.home() / ".cache" / "huggingface" / "token",
+)
+
+
+def _hf_token() -> str | None:
+    import os
+    env = os.environ.get("HF_TOKEN") or os.environ.get("HUGGING_FACE_HUB_TOKEN")
+    if env:
+        return env.strip()
+    for candidate in _TOKEN_PATHS:
+        try:
+            text = candidate.read_text().strip()
+        except OSError:
+            continue
+        if text:
+            return text
+    return None
+
+
+TOKEN = _hf_token()
+
+
+def _request(url: str) -> urllib.request.Request:
+    """Sent only to huggingface.co. Never logged, never written to results."""
+    headers = {"User-Agent": "quickset-sweep/1.0"}
+    if TOKEN:
+        headers["Authorization"] = f"Bearer {TOKEN}"
+    return urllib.request.Request(url, headers=headers)
 
 
 def sha256_of(path: Path) -> str:
@@ -125,6 +165,19 @@ def spread(candidates: list[dict], max_files: int, max_size: int) -> list[dict]:
     return chosen
 
 
+def _scrub(text: str) -> str:
+    """Never let the token reach an error string, a log line or the artifact.
+
+    urllib puts the Authorization header in a Request's repr, so any exception
+    or debug print that carries the request object carries the credential with
+    it. Results are written to disk and shared, so this is scrubbed at the one
+    place every error string passes through rather than trusted not to happen.
+    """
+    if TOKEN and TOKEN in text:
+        text = text.replace(TOKEN, "<redacted>")
+    return text
+
+
 def fetch(item: dict, max_size: int) -> tuple[dict, Path | None, str]:
     if item["size"] > max_size:
         return item, None, "too large"
@@ -134,12 +187,30 @@ def fetch(item: dict, max_size: int) -> tuple[dict, Path | None, str]:
         return item, dest, ""
     dest.parent.mkdir(parents=True, exist_ok=True)
     url = f"{API}/{item['repo']}/resolve/main/{item['path']}"
-    try:
-        req = urllib.request.Request(url, headers={"User-Agent": "quickset-sweep/1.0"})
-        with urllib.request.urlopen(req, timeout=300) as resp:
-            data = resp.read()
-    except Exception as exc:
-        return item, None, f"download: {exc}"
+    # A dropped connection is a transport failure, not a property of the file,
+    # so retry rather than recording it as an error. Recording them cost ~110
+    # files on one run and silently changed the denominator every rate in the
+    # summary is measured against.
+    data = None
+    last = ""
+    for attempt in range(3):
+        try:
+            with urllib.request.urlopen(_request(url), timeout=300) as resp:
+                data = resp.read()
+            break
+        except urllib.error.HTTPError as exc:
+            # 401/403/404 are verdicts about access, not glitches. Retrying
+            # them wastes time and hides a gated repository behind a generic
+            # failure.
+            if exc.code in (401, 403, 404):
+                return item, None, _scrub(f"download: HTTP Error {exc.code}: {exc.reason}")
+            last = _scrub(f"HTTP Error {exc.code}: {exc.reason}")
+        except Exception as exc:
+            last = _scrub(str(exc))
+        if attempt < 2:
+            time.sleep(2 ** attempt)
+    if data is None:
+        return item, None, _scrub(f"download: {last} (3 attempts)")
     if item["sha256"] and hashlib.sha256(data).hexdigest() != item["sha256"]:
         return item, None, "hash mismatch"
     dest.write_bytes(data)
