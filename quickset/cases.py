@@ -712,6 +712,144 @@ def _benign_paths_and_urls() -> bytes:
     )
 
 
+
+# ── Hard benign negatives ───────────────────────────────────────────
+#
+# Every builder below targets one specific signal in a real scanner, and
+# every one of them is legitimate. A tool that flags these is not being
+# thorough, it is being wrong, and the false-positive column is where that
+# shows up. Written against this project's own checks on purpose: the
+# author's tool is the one whose blind spots the author knows.
+
+
+def _benign_slashed_tensor_names() -> bytes:
+    """Tensor names containing slashes and dots, which are ordinary.
+
+    Traversal checks that split on "/" have to distinguish a path segment
+    from a name that merely contains separators. TensorFlow and Keras export
+    names exactly like this.
+    """
+    import struct
+    names = [
+        "model.layers.0/attention/q_proj.weight",
+        "encoder/block_0/layer_norm/gamma:0",
+        "dense_1/kernel",
+    ]
+    header, offset = {}, 0
+    for name in names:
+        header[name] = {"dtype": "F32", "shape": [4], "data_offsets": [offset, offset + 16]}
+        offset += 16
+    raw = json.dumps(header).encode()
+    return struct.pack("<Q", len(raw)) + raw + b"\x00" * offset
+
+
+def _benign_adjacent_offsets() -> bytes:
+    """Tensors whose spans touch exactly. Legal, and one off from overlapping."""
+    import struct
+    header = {
+        "w1": {"dtype": "F32", "shape": [4], "data_offsets": [0, 16]},
+        "w2": {"dtype": "F32", "shape": [4], "data_offsets": [16, 32]},
+    }
+    raw = json.dumps(header).encode()
+    return struct.pack("<Q", len(raw)) + raw + b"\x00" * 32
+
+
+def _benign_onnx_sibling_weights() -> bytes:
+    """external_data naming a real sibling file, which is its whole purpose."""
+    entry = _pb_len(1, b"location") + _pb_len(2, b"model-00001-of-00002.bin")
+    tensor = _pb_len(8, entry) + bytes([(9 << 3) | 0, 2])
+    return _pb_len(1, _pb_len(12, tensor)) + b"\x08\x07"
+
+
+def _gguf_with_kv(entries: list[tuple[str, str]]) -> bytes:
+    """A GGUF file carrying string metadata, and nothing else."""
+    import struct
+
+    def gstr(text: str) -> bytes:
+        raw = text.encode()
+        return struct.pack("<Q", len(raw)) + raw
+
+    out = b"GGUF" + struct.pack("<IQQ", 3, 0, len(entries))
+    for key, value in entries:
+        out += gstr(key) + struct.pack("<I", 8) + gstr(value)
+    return out
+
+
+def _benign_jinja_chat_template() -> bytes:
+    """A chat template of the shape every instruction-tuned model ships.
+
+    Templates are dense with Jinja control flow. A check keying on "{{" alone
+    measures how many models are chat-tuned, not how many are malicious.
+    """
+    template = (
+        "{% for message in messages %}"
+        "{% if message['role'] == 'user' %}"
+        "{{ '<|user|>\\n' + message['content'] + eos_token }}"
+        "{% elif message['role'] == 'system' %}"
+        "{{ '<|system|>\\n' + message['content'] + eos_token }}"
+        "{% endif %}{% endfor %}"
+        "{% if add_generation_prompt %}{{ '<|assistant|>' }}{% endif %}"
+    )
+    return _gguf_with_kv([
+        ("general.architecture", "llama"),
+        ("tokenizer.chat_template", template),
+    ])
+
+
+def _benign_code_trained_vocab() -> bytes:
+    """Tokenizer vocabulary from a code-trained model.
+
+    A vocabulary built from source text necessarily contains "exec(",
+    "subprocess" and "__import__". This exact shape produced false positives
+    on real unsloth models twice, on two different metadata keys.
+    """
+    return _gguf_with_kv([
+        ("general.architecture", "llama"),
+        ("tokenizer.ggml.tokens", "exec( subprocess __import__ os.system eval("),
+        ("tokenizer.ggml.merges", "sub process ex ec im port os .system"),
+    ])
+
+
+def _benign_compressed_joblib() -> bytes:
+    """An ordinary sklearn-shaped payload behind xz.
+
+    Reading compressed joblib is necessary; treating compression itself as a
+    signal is not. joblib.dump(compress=...) is a documented, common option.
+    """
+    import lzma
+    payload = pickle.dumps(
+        {"coef_": [0.1, 0.2, 0.3], "intercept_": 0.4, "n_features_in_": 3},
+        protocol=4,
+    )
+    return lzma.compress(payload, format=lzma.FORMAT_XZ)
+
+
+def _benign_bytes_that_start_like_a_pickle() -> bytes:
+    """A weights blob whose first bytes happen to match a PROTO marker.
+
+    Any check that treats an embedded bytes literal as a nested pickle has to
+    survive tensor data that begins 0x80 0x04 by coincidence, which in a large
+    model is a matter of time rather than luck.
+    """
+    return pickle.dumps(
+        {"weights": b"\x80\x04" + bytes(range(256)) * 32, "name": "resnet50"},
+        protocol=4,
+    )
+
+
+def _benign_pickle_after_raw_bytes() -> bytes:
+    """Two pickles separated by raw array data, as joblib writes them.
+
+    A walk that resyncs past raw bytes must not invent findings in the
+    ordinary case, which is every joblib file ever written.
+    """
+    import struct
+    head = pickle.dumps({"description": "weights follow"}, protocol=4)
+    array = struct.pack("<1024f", *[0.5] * 1024)
+    tail = pickle.dumps({"shape": [32, 32], "dtype": "float32"}, protocol=4)
+    return head + array + tail
+
+
 BENIGN: tuple[Case, ...] = (
     Case(
         id="benign-state-dict",
@@ -757,6 +895,105 @@ BENIGN: tuple[Case, ...] = (
         notes="Targets naive argument-content matching.",
         tags=("false-positive-bait",),
         build=_benign_paths_and_urls,
+    ),
+    # ── Hard negatives, each aimed at one real detection signal ─────
+    Case(
+        id="benign-slashed-tensor-names",
+        filename="model.safetensors",
+        malicious=False,
+        technique="Tensor names containing slashes and dots, as TensorFlow "
+                  "and Keras exports produce.",
+        origin="quickset",
+        notes="Targets traversal checks on tensor names. A name is not a "
+              "path merely because it contains separators, and the "
+              "distinction is the whole rule.",
+        tags=("false-positive-bait", "safetensors"),
+        build=_benign_slashed_tensor_names,
+    ),
+    Case(
+        id="benign-adjacent-offsets",
+        filename="model.safetensors",
+        malicious=False,
+        technique="Two tensors whose data spans touch exactly.",
+        origin="quickset",
+        notes="Targets overlap detection at its boundary: end == start is "
+              "legal and is what a packed file looks like. One byte the "
+              "other way is a real finding.",
+        tags=("false-positive-bait", "safetensors"),
+        build=_benign_adjacent_offsets,
+    ),
+    Case(
+        id="benign-onnx-sibling-weights",
+        filename="model.onnx",
+        malicious=False,
+        technique="external_data naming a sharded sibling file.",
+        origin="quickset",
+        notes="Targets external_data checks. Pointing at a neighbouring "
+              "weights file is the feature, not an abuse of it.",
+        tags=("false-positive-bait", "onnx"),
+        build=_benign_onnx_sibling_weights,
+    ),
+    Case(
+        id="benign-jinja-chat-template",
+        filename="model.gguf",
+        malicious=False,
+        technique="A chat template with the Jinja control flow every "
+                  "instruction-tuned model ships.",
+        origin="quickset",
+        notes="Targets template-injection checks that key on '{{'. Matching "
+              "that counts chat-tuned models, not malicious ones.",
+        tags=("false-positive-bait", "gguf"),
+        build=_benign_jinja_chat_template,
+    ),
+    Case(
+        id="benign-code-trained-vocab",
+        filename="model.gguf",
+        malicious=False,
+        technique="Tokenizer vocabulary containing exec(, subprocess and "
+                  "__import__ as ordinary tokens.",
+        origin="hub-observed",
+        reference="unsloth GGUF releases",
+        notes="Not hypothetical. This shape produced false positives on real "
+              "models twice, on two different metadata keys, and was only "
+              "found by sweeping the Hub. A vocabulary built from source "
+              "text contains source-text substrings by construction.",
+        tags=("false-positive-bait", "gguf"),
+        build=_benign_code_trained_vocab,
+    ),
+    Case(
+        id="benign-compressed-joblib",
+        filename="model.joblib",
+        malicious=False,
+        technique="An ordinary sklearn payload behind xz compression.",
+        origin="quickset",
+        notes="Targets the codec handling. Reading compressed joblib is "
+              "necessary; treating compression as a signal is not.",
+        tags=("false-positive-bait", "joblib"),
+        build=_benign_compressed_joblib,
+    ),
+    Case(
+        id="benign-weights-starting-like-pickle",
+        filename="model.pkl",
+        malicious=False,
+        technique="A weights blob whose first bytes coincide with a PROTO "
+                  "marker.",
+        origin="quickset",
+        notes="Targets nested-pickle detection. In a large model, tensor "
+              "data beginning 0x80 0x04 is a matter of time.",
+        tags=("false-positive-bait", "nested"),
+        build=_benign_bytes_that_start_like_a_pickle,
+    ),
+    Case(
+        id="benign-pickle-after-raw-bytes",
+        filename="model.joblib",
+        malicious=False,
+        technique="Two pickles separated by raw array data, as joblib writes.",
+        origin="quickset",
+        notes="Targets resync. A walk that reads past raw bytes must not "
+              "invent findings in the ordinary case, which is every joblib "
+              "file ever written.",
+        tags=("false-positive-bait", "resync"),
+        build=_benign_pickle_after_raw_bytes,
     ),
 )
 

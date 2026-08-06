@@ -188,8 +188,11 @@ def test_legacy_layout_hides_payload_after_first_stop():
 def test_origins_are_declared():
     """Cases invented here are the weakest evidence in the set and have to be
     distinguishable from published ones at a glance."""
+    # hub-observed: a shape seen causing a real false positive on a public
+    # model, rather than one anybody constructed. Distinct from
+    # hub-bypass-poc, which is an attack somebody published on purpose.
     allowed = {"published-cve", "published-technique", "folklore", "quickset",
-               "real-world", "hub-bypass-poc", "derived"}
+               "real-world", "hub-bypass-poc", "hub-observed", "derived"}
     for case in cases.ALL_CASES:
         assert case.origin in allowed, f"{case.id} has an undeclared origin"
     for case in cases.MALICIOUS:

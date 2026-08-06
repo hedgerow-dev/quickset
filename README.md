@@ -52,19 +52,21 @@ Every scanner is scored at **two thresholds, always paired**: the strict tier (w
 ```
 scanner                of files read    of corpus        false positives    coverage
 ----------------------------------------------------------------------------------
-picklescan             12/24 (50%)      12/26 (46%)      1/184 (1%)         208/245 (85%)
-picklescan +unknown    13/24 (54%)      13/26 (50%)      38/184 (21%)
-modelscan              5/13 (38%)       5/26 (19%)       0/79 (0%)          92/245 (38%)
-modelaudit             18/26 (69%)      18/26 (69%)      13/219 (6%)        245/245 (100%)
-modelaudit +unknown    22/26 (85%)      22/26 (85%)      94/219 (43%)
-fickling               16/17 (94%)      16/26 (62%)      88/90 (98%)        107/245 (44%)
-hayward                26/26 (100%)     26/26 (100%)     0/219 (0%)         245/245 (100%)
-hayward +unknown       26/26 (100%)     26/26 (100%)     7/219 (3%)
+picklescan             12/24 (50%)      12/26 (46%)      1/192 (1%)         216/253 (85%)
+picklescan +unknown    13/24 (54%)      13/26 (50%)      38/192 (20%)
+modelscan              5/13 (38%)       5/26 (19%)       0/80 (0%)          93/253 (37%)
+modelaudit             18/26 (69%)      18/26 (69%)      14/227 (6%)        253/253 (100%)
+modelaudit +unknown    22/26 (85%)      22/26 (85%)      95/227 (42%)
+fickling               16/17 (94%)      16/26 (62%)      90/94 (96%)        111/253 (44%)
+hayward                26/26 (100%)     26/26 (100%)     0/227 (0%)         253/253 (100%)
+hayward +unknown       26/26 (100%)     26/26 (100%)     7/227 (3%)
 ```
 
 **Detection is given twice on purpose.** *Of files read* asks whether a scanner finds the payload once it has opened the file. *Of corpus* counts the files it never read as misses, which is what an operator actually gets. The two diverge sharply for tools with low coverage: fickling scores 94% on the first and 62% on the second, because it read 17 of the 26 malicious files. Quoting only the first column is how a scanner that reads very little comes to look accurate.
 
 **Read the coverage column before either of them.** modelscan silently read zero files on 153 of 245 (mostly a removed private numpy API in its joblib path), fickling produced nothing on 138, and picklescan returned no verdict on 37. Only modelaudit and hayward returned a verdict on everything.
+
+**Eight of the benign cases are traps built against specific detection signals**, not generic clean files: tensor names containing slashes, tensor spans that touch exactly, `external_data` naming a sibling shard, a Jinja chat template, a code-trained vocabulary containing `exec(` and `subprocess`, an xz-compressed sklearn payload, a weights blob whose first bytes coincide with a pickle PROTO marker, and two pickles separated by raw array data. Each one is legitimate and each one is what a plausible rule gets wrong. Three currently catch someone: modelaudit reports four issues on the coincidental PROTO marker, and fickling calls both the Jinja template and the code-trained vocabulary `LIKELY_UNSAFE`. The vocabulary case is not hypothetical, it caused two real false positives on unsloth releases before a Hub sweep found them.
 
 **A corpus where the author's tool wins everything is a corpus that was written to let it, so treat the 26/26 with suspicion.** It was 25/26 until recently. `joblib-payload-after-raw-array` puts the gadget after raw ndarray bytes, where a walker that stops at the first unparseable byte never reaches it. That case was added marked as a known miss on the assumption nothing detected it; the first run reported that modelaudit did and hayward did not, and hayward was fixed in response. The mechanism worked, but it leaves this table without a case its author loses, which is a weakness in the corpus rather than a strength of the scanner. **A case hayward fails is the most valuable contribution anyone can make here.**
 
