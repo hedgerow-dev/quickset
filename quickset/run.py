@@ -32,6 +32,14 @@ class Score:
     # included). Equal to the strict counts when the tool has no unknown tier.
     detected_lenient: int = 0
     false_positives_lenient: int = 0
+    # Every malicious and benign file in the corpus, including the ones this
+    # scanner could not read. Detection against the files it read answers
+    # "when it looks, does it see?"; detection against the corpus answers
+    # "if I hand it my models, what does it catch?". Only the second is what
+    # a user gets, and a tool that reads little scores far better on the
+    # first, so showing one without the other flatters poor coverage.
+    corpus_malicious: int = 0
+    corpus_benign: int = 0
 
     @property
     def covered(self) -> int:
@@ -51,6 +59,11 @@ class Score:
     @property
     def recall(self) -> float:
         return self.detected / self.total_malicious if self.total_malicious else 0.0
+
+    @property
+    def corpus_recall(self) -> float:
+        """Detection against every malicious file, read or not."""
+        return self.detected / self.corpus_malicious if self.corpus_malicious else 0.0
 
     @property
     def fp_rate(self) -> float:
@@ -110,8 +123,10 @@ def run(corpus_dir: Path, jobs: int = 1) -> tuple[list[Score], dict]:
                 n_ben += 1
                 fp += bool(outcome.flagged)
                 fp_l += bool(lenient)
+        corpus_mal = sum(1 for _p, c in items if c.malicious)
+        corpus_ben = len(items) - corpus_mal
         scores.append(Score(adapter.name, detected, n_mal, fp, n_ben, errors,
-                            detected_l, fp_l))
+                            detected_l, fp_l, corpus_mal, corpus_ben))
 
     return scores, per_case
 
@@ -280,17 +295,22 @@ def _print_report(scores: list[Score], per_case: dict) -> None:
     print()
     print("SUMMARY")
     print()
-    print("scanner".ljust(22), "detection".ljust(16), "false positives".ljust(18),
+    print("scanner".ljust(22), "of files read".ljust(16),
+          "of corpus".ljust(16), "false positives".ljust(18),
           "coverage".ljust(16), "errors")
-    print("-" * 76)
+    print("-" * 94)
     for score in scores:
         det = f"{score.detected}/{score.total_malicious} ({score.recall:.0%})"
+        det_corpus = (f"{score.detected}/{score.corpus_malicious} "
+                      f"({score.corpus_recall:.0%})"
+                      if score.corpus_malicious else "-")
         fps = f"{score.false_positives}/{score.total_benign} ({score.fp_rate:.0%})"
         cov = f"{score.covered}/{score.attempted} ({score.coverage:.0%})"
         # Errors were previously counted and never printed, so a scanner
         # erroring on every case looked identical to one flagging nothing.
         err = str(score.errors) if score.errors else "-"
-        print(score.scanner.ljust(22), det.ljust(16), fps.ljust(18), cov.ljust(16), err)
+        print(score.scanner.ljust(22), det.ljust(16), det_corpus.ljust(16),
+              fps.ljust(18), cov.ljust(16), err)
         if (score.detected_lenient, score.false_positives_lenient) != (
             score.detected, score.false_positives,
         ):
@@ -300,7 +320,11 @@ def _print_report(scores: list[Score], per_case: dict) -> None:
             fp_l = (f"{score.false_positives_lenient}/{score.total_benign} "
                     f"({score.false_positives_lenient / score.total_benign:.0%})"
                     if score.total_benign else "-")
-            print((score.scanner + " +unknown").ljust(22), det_l.ljust(16), fp_l.ljust(18))
+            det_l_corpus = (f"{score.detected_lenient}/{score.corpus_malicious} "
+                            f"({score.detected_lenient / score.corpus_malicious:.0%})"
+                            if score.corpus_malicious else "-")
+            print((score.scanner + " +unknown").ljust(22), det_l.ljust(16),
+                  det_l_corpus.ljust(16), fp_l.ljust(18))
 
     print()
     print("Detection and false positives are reported separately and never")
@@ -316,6 +340,14 @@ def _print_report(scores: list[Score], per_case: dict) -> None:
     print("at its top tier while counting another's unknown tier is the")
     print("specific unfairness this table exists to avoid. Run with --verbose")
     print("to see each scanner's own verdict string per case.")
+    print()
+    print("Detection is given twice. 'Of files read' asks whether a scanner")
+    print("finds the payload when it opens the file. 'Of corpus' asks what")
+    print("it catches from everything handed to it, counting the files it")
+    print("never read as misses. The second is what an operator gets, and")
+    print("the two diverge sharply for tools with low coverage: a scanner")
+    print("that reads a sixth of the corpus can score well on the first")
+    print("column while catching very little.")
     print()
     print("Coverage is the share of files the scanner returned any verdict")
     print("on. Errored files (parse failures, crashes, zero-file scans) are")

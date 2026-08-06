@@ -50,21 +50,23 @@ what is missing or has drifted from its hash.
 Every scanner is scored at **two thresholds, always paired**: the strict tier (what the tool's own author calls actionable) and, as a `+unknown` row, the tier that includes its unknown bucket (picklescan's `suspicious`, modelaudit's `warning`, fickling's `SUSPICIOUS`, hayward's `INFO`). **Coverage** is the share of files the scanner returned any verdict on at all; errored files are excluded from every numerator and denominator. Measured 2026-08-06 on Python 3.12.13, with picklescan 1.0.5, modelscan 0.8.8, modelaudit 0.2.52, fickling 0.1.12 and hayward 1.0.0:
 
 ```
-scanner                detection        false positives    coverage
--------------------------------------------------------------------------
-picklescan             12/24 (50%)      1/184 (1%)         208/245 (85%)
-picklescan +unknown    13/24 (54%)      38/184 (21%)
-modelscan              5/13 (38%)       0/79 (0%)          92/245 (38%)
-modelaudit             18/26 (69%)      13/219 (6%)        245/245 (100%)
-modelaudit +unknown    22/26 (85%)      94/219 (43%)
-fickling               16/17 (94%)      88/90 (98%)        107/245 (44%)
-hayward                25/26 (96%)      0/219 (0%)         245/245 (100%)
-hayward +unknown       25/26 (96%)      7/219 (3%)
+scanner                of files read    of corpus        false positives    coverage
+----------------------------------------------------------------------------------
+picklescan             12/24 (50%)      12/26 (46%)      1/184 (1%)         208/245 (85%)
+picklescan +unknown    13/24 (54%)      13/26 (50%)      38/184 (21%)
+modelscan              5/13 (38%)       5/26 (19%)       0/79 (0%)          92/245 (38%)
+modelaudit             18/26 (69%)      18/26 (69%)      13/219 (6%)        245/245 (100%)
+modelaudit +unknown    22/26 (85%)      22/26 (85%)      94/219 (43%)
+fickling               16/17 (94%)      16/26 (62%)      88/90 (98%)        107/245 (44%)
+hayward                26/26 (100%)     26/26 (100%)     0/219 (0%)         245/245 (100%)
+hayward +unknown       26/26 (100%)     26/26 (100%)     7/219 (3%)
 ```
 
-Read the coverage column first: modelscan silently read zero files on 153 of 245 (mostly a removed private numpy API in its joblib path), fickling produced nothing on 138, and picklescan returned no verdict on 37. Only modelaudit and hayward returned a verdict on everything. A scanner that never read the file has no verdict to its name.
+**Detection is given twice on purpose.** *Of files read* asks whether a scanner finds the payload once it has opened the file. *Of corpus* counts the files it never read as misses, which is what an operator actually gets. The two diverge sharply for tools with low coverage: fickling scores 94% on the first and 62% on the second, because it read 17 of the 26 malicious files. Quoting only the first column is how a scanner that reads very little comes to look accurate.
 
-**The case hayward misses is the one worth looking at.** `joblib-payload-after-raw-array` puts the gadget after raw ndarray bytes in the pickle stream, so a walker that stops at the first unparseable byte never reaches it. modelaudit flags it at its critical tier and hayward does not, which makes it the only case here where the scanner this project is built alongside loses outright to a competitor. It is also the reason to distrust the rest of the column less: a corpus where the author's tool wins everything is a corpus that was written to let it.
+**Read the coverage column before either of them.** modelscan silently read zero files on 153 of 245 (mostly a removed private numpy API in its joblib path), fickling produced nothing on 138, and picklescan returned no verdict on 37. Only modelaudit and hayward returned a verdict on everything.
+
+**A corpus where the author's tool wins everything is a corpus that was written to let it, so treat the 26/26 with suspicion.** It was 25/26 until recently. `joblib-payload-after-raw-array` puts the gadget after raw ndarray bytes, where a walker that stops at the first unparseable byte never reaches it. That case was added marked as a known miss on the assumption nothing detected it; the first run reported that modelaudit did and hayward did not, and hayward was fixed in response. The mechanism worked, but it leaves this table without a case its author loses, which is a weakness in the corpus rather than a strength of the scanner. **A case hayward fails is the most valuable contribution anyone can make here.**
 
 These numbers are not comparable to those published on 2026-08-04, for three reasons at once:
 
