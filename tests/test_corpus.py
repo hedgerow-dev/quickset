@@ -158,6 +158,13 @@ def test_malicious_case_actually_contains_a_gadget(case):
     so the property has to be checked per family: a pickle really resolves a
     global, and everything else really carries the string it is built around.
     """
+    # The truncation family is cut before its payload on purpose, so the
+    # gadget is absent by design rather than by malformation. What has to
+    # hold for those cases is the opposite property, pinned directly by
+    # test_truncated_cases_are_cut_before_the_gadget.
+    if "truncation" in case.tags and "parser-coverage" in case.tags:
+        return
+
     blob = _decompressed(case.build())
 
     if GLOBAL_RESOLUTION_OPS & _resolution_ops(blob):
@@ -183,6 +190,55 @@ def test_legacy_layout_hides_payload_after_first_stop():
     assert b"system" not in blob[: stream.tell()], (
         "the gadget must not be visible within the first pickle"
     )
+
+
+def _fully_parses(blob: bytes) -> bool:
+    """True when every byte belongs to a pickle stream that reaches STOP."""
+    stream = io.BytesIO(blob)
+    while stream.tell() < len(blob):
+        start = stream.tell()
+        try:
+            for _op, _arg, _pos in pickletools.genops(stream):
+                pass
+        except Exception:
+            return False
+        if stream.tell() <= start:
+            return False
+    return True
+
+
+def test_truncated_cases_are_cut_before_the_gadget():
+    """The truncation cases measure nothing unless the cut lands before the
+    payload and leaves the stream unfinished. Shrinking the padding, or
+    moving the gadget above a cut, would quietly turn them into ordinary
+    detection cases that every scanner passes, and nothing else here would
+    notice."""
+    intact = next(
+        c for c in cases.MALICIOUS if c.id == "truncated-stream-control"
+    ).build()
+    assert b"system" in intact, "the control has to carry the gadget"
+    assert _fully_parses(intact), "the control has to be a complete pickle"
+
+    cut = [c for c in cases.MALICIOUS
+           if "truncation" in c.tags and "parser-coverage" in c.tags]
+    assert cut, "the truncation family disappeared"
+    for case in cut:
+        blob = case.build()
+        assert b"system" not in blob, (
+            f"{case.id} still carries the gadget, so it has stopped testing "
+            f"what a scanner does with a stream it cannot finish"
+        )
+        assert not _fully_parses(blob), f"{case.id} parses through to a STOP"
+
+
+def test_extension_family_is_one_payload_under_five_names():
+    """The extension family measures the filename and nothing else, so its
+    bytes have to stay identical across it. If they ever diverge, a scanner
+    that catches one and misses another is being scored on the payload."""
+    family = [c for c in cases.MALICIOUS if "unlisted-extension" in c.tags]
+    assert len(family) == 5
+    assert len({c.build() for c in family}) == 1
+    assert len({c.filename for c in family}) == 5
 
 
 def test_origins_are_declared():

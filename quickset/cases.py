@@ -214,6 +214,67 @@ def _numpy_hidden_payload() -> bytes:
     return zlib.compress(head + struct.pack("<I", len(filler)) + filler + tail)
 
 
+def _eval_exec_payload() -> bytes:
+    """The canary shape from mcpotato/42-eicar-street: eval of an exec.
+
+    That repository's build_pickles.py returns `eval, (f"exec('''{src}''')",)`
+    from __reduce__ and writes the result as danger.dat. The shape is rebuilt
+    here from the builder script rather than fetched: this corpus stores
+    nothing malicious, and a hub repository can be deleted. The source string
+    is the inert marker print, and the rebuild is the same length as the
+    66-byte original.
+    """
+    return _reduce(
+        "builtins", "eval", _tuple1(_su(f"exec('''print('{MARKER}')''')"))
+    )
+
+
+# Large enough that every cut in the truncation family lands inside the
+# padding rather than inside the gadget, which is the point of the family.
+_TRUNCATION_PADDING = 100_000
+
+
+def _padded_gadget_pickle() -> bytes:
+    """A framed protocol-4 dict: 100 KB of padding, then os.system.
+
+    Framed the way pickle.dumps writes protocol 4, so a truncated copy also
+    declares a frame longer than the file carrying it. The cut is detectable
+    from the header arithmetic alone, with no heuristic involved.
+    """
+    import struct
+
+    body = (
+        b"}("                                        # EMPTY_DICT, MARK
+        + _su("padding")
+        + b"X" + struct.pack("<I", _TRUNCATION_PADDING)
+        + b"x" * _TRUNCATION_PADDING
+        + _su("evil")
+        + _su("os") + _su("system") + b"\x93"
+        + _tuple1(_su(f"echo {MARKER}")) + b"R"
+        + b"u."                                      # SETITEMS, STOP
+    )
+    return b"\x80\x04\x95" + struct.pack("<Q", len(body)) + body
+
+
+def _truncated_gadget_pickle(percent: int) -> bytes:
+    """`_padded_gadget_pickle` cut to `percent` of its length."""
+    blob = _padded_gadget_pickle()
+    return blob[: len(blob) * percent // 100]
+
+
+def _truncated_legacy_layout() -> bytes:
+    """torch's legacy layout cut inside its fourth pickle stream.
+
+    The magic number, the protocol version and the sys_info dict all reach
+    STOP, so a scanner that walks complete streams and drops an incomplete
+    tail has consumed everything it considers a stream and still never
+    reaches the state_dict.
+    """
+    payload = _padded_gadget_pickle()
+    full = legacy_torch_layout(payload)
+    return full[: full.index(payload) + 1024]
+
+
 # ── Malicious cases ─────────────────────────────────────────────────
 
 MALICIOUS: tuple[Case, ...] = (
@@ -653,6 +714,159 @@ MALICIOUS: tuple[Case, ...] = (
               "three scanners still miss it.",
         tags=("resync", "joblib"),
         build=_numpy_hidden_payload,
+    ),
+    # ── Nothing reported, and no coverage finding either ────────────
+    #
+    # The two families below score one failure from two directions: the
+    # scanner returns no findings *and* says nothing about not having read
+    # the file, so its report is indistinguishable from a clean one. A tool
+    # that declines out loud -- picklescan's "could not parse as pickle",
+    # modelscan's zero-file scan, a hayward coverage gap -- is behaving
+    # correctly and is charged to the coverage column instead of the
+    # detection one. That distinction is what these cases measure, and it is
+    # the reason they are worth carrying separately from the gadget cases.
+    #
+    # A truncated stream carries no gadget and is still labelled malicious.
+    # A pickle that ends before its STOP opcode is not a file anything can
+    # load, so "clean" is the one verdict that cannot be right; reporting
+    # the truncation is what passes. Both families were found against
+    # hayward 1.0.0 and both catch more than hayward.
+    Case(
+        id="eval-exec-known-extension",
+        filename="danger.pkl",
+        malicious=True,
+        technique="eval() of an exec(), under an extension every scanner "
+                  "reads. The control for the four cases after it: identical "
+                  "bytes, different name.",
+        origin="hub-bypass-poc",
+        reference="mcpotato/42-eicar-street, danger.dat (rebuilt from that "
+                  "repository's build_pickles.py)",
+        notes="A scanner that misses this is missing the payload. A scanner "
+              "that catches this and misses the next four is dispatching on "
+              "the extension and never opening the file.",
+        tags=("baseline", "unlisted-extension"),
+        build=_eval_exec_payload,
+    ),
+    Case(
+        id="unlisted-extension-dat",
+        filename="danger.dat",
+        malicious=True,
+        technique="The control's exact bytes under .dat, which is the name "
+                  "the canary repository actually publishes them under.",
+        origin="hub-bypass-poc",
+        reference="mcpotato/42-eicar-street, danger.dat",
+        notes="hayward 1.0.0 returns no findings and an empty coverage_gaps "
+              "array for this, and CRITICAL MFV-PICKLE-001 for the identical "
+              "bytes named danger.pkl. The file has sat on the Hub as a "
+              "scanner canary for years, so this is not a hypothetical name.",
+        tags=("parser-coverage", "extension-dispatch", "unlisted-extension"),
+        build=_eval_exec_payload,
+    ),
+    Case(
+        id="unlisted-extension-data",
+        filename="weights.data",
+        malicious=True,
+        technique="The same bytes under .data.",
+        origin="derived",
+        reference="Same shape as mcpotato/42-eicar-street's danger.dat under "
+                  "a different name.",
+        tags=("parser-coverage", "extension-dispatch", "unlisted-extension"),
+        build=_eval_exec_payload,
+    ),
+    Case(
+        id="unlisted-extension-weights",
+        filename="model.weights",
+        malicious=True,
+        technique="The same bytes under .weights.",
+        origin="derived",
+        reference="Same shape as mcpotato/42-eicar-street's danger.dat under "
+                  "a different name.",
+        notes="modelscan reports zero files scanned rather than a clean "
+              "verdict here, which is the correct behaviour this family "
+              "exists to distinguish from silence.",
+        tags=("parser-coverage", "extension-dispatch", "unlisted-extension"),
+        build=_eval_exec_payload,
+    ),
+    Case(
+        id="unlisted-extension-none",
+        filename="pytorch_model",
+        malicious=True,
+        technique="The same bytes with no extension at all, so there is "
+                  "nothing to dispatch on except the content.",
+        origin="derived",
+        reference="Same shape as mcpotato/42-eicar-street's danger.dat with "
+                  "the extension removed.",
+        tags=("parser-coverage", "extension-dispatch", "unlisted-extension"),
+        build=_eval_exec_payload,
+    ),
+    Case(
+        id="truncated-stream-control",
+        filename="padded_gadget.pkl",
+        malicious=True,
+        technique="An intact framed pickle: 100 KB of padding, then "
+                  "os.system. The file the cuts below are taken from.",
+        origin="quickset",
+        reference="Found while building this corpus, against hayward 1.0.0.",
+        notes="Control. Every scanner here flags it, so a miss on one of the "
+              "cuts is about the truncation and not about the gadget.",
+        tags=("baseline", "truncation"),
+        build=_padded_gadget_pickle,
+    ),
+    Case(
+        id="truncated-stream-quarter",
+        filename="padded_gadget_quarter.pkl",
+        malicious=True,
+        technique="The control cut to a quarter of its length: the stream "
+                  "ends mid-padding, the frame header promises bytes that "
+                  "are not there, and the gadget is past the cut.",
+        origin="quickset",
+        reference="Found while building this corpus, against hayward 1.0.0.",
+        tags=("parser-coverage", "truncation"),
+        build=lambda: _truncated_gadget_pickle(25),
+    ),
+    Case(
+        id="truncated-stream-half",
+        filename="padded_gadget_half.pkl",
+        malicious=True,
+        technique="The same cut at half the file.",
+        origin="quickset",
+        reference="Found while building this corpus, against hayward 1.0.0.",
+        notes="hayward 1.0.0 and picklescan both report clean. modelscan "
+              "reports a parse error, modelaudit a warning and fickling "
+              "LIKELY_UNSAFE: three ways of saying something is wrong with "
+              "the file, which is the answer this case is looking for.",
+        tags=("parser-coverage", "truncation"),
+        build=lambda: _truncated_gadget_pickle(50),
+    ),
+    Case(
+        id="truncated-stream-nine-tenths",
+        filename="padded_gadget_ninetenths.pkl",
+        malicious=True,
+        technique="The same cut with only a tenth of the file missing, which "
+                  "is what a short read or a size cap produces rather than a "
+                  "deliberate splice.",
+        origin="quickset",
+        reference="Found while building this corpus, against hayward 1.0.0.",
+        tags=("parser-coverage", "truncation"),
+        build=lambda: _truncated_gadget_pickle(90),
+    ),
+    Case(
+        id="truncated-legacy-layout",
+        filename="truncated_legacy.pt",
+        malicious=True,
+        technique="torch's legacy layout cut inside its fourth pickle "
+                  "stream. The magic number, the protocol version and the "
+                  "sys_info dict all reach STOP, so a scanner that walks "
+                  "complete streams and drops the incomplete tail sees a "
+                  "well-formed file and never reaches the state_dict.",
+        origin="quickset",
+        reference="Found while building this corpus, against hayward 1.0.0.",
+        notes="The pair is what makes this worth carrying: "
+              "legacy-layout-second-pickle scores reading past the first "
+              "STOP, and this one scores what happens when the last stream "
+              "never gets to one.",
+        tags=("parser-coverage", "truncation", "torch-legacy"),
+        build=_truncated_legacy_layout,
     ),
 )
 
