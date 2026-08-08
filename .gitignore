@@ -10,3 +10,7 @@ sweep-cache/
 sweep-results*.json
 range-compare-results*.json
 safety_results.json
+
+# Evidence archives keep their raw enumerations on disk, not in git.
+evidence/**/hub_enumeration_*.jsonl.gz
+.DS_Store

