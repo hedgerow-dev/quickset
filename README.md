@@ -122,6 +122,115 @@ Results worth singling out because they are about the tools, not the corpus:
 - fickling **times out** (120s) on the `DUP` amplification case. Counted as an error, never as a detection. A scanner that hangs has not detected anything, and crediting it would reward the failure.
 - modelscan is the most conservative of the four and misses every gadget not on its operator list, including cloudpickle (verified: 0 issues, 0 errors, not an adapter artifact).
 
+## Reading the Hub without downloading it
+
+A Hub-scale false-positive measurement is bounded by download volume, not by
+scan time. Scanning a large sample of public checkpoints the obvious way means
+tens of terabytes. But a torch checkpoint is a zip whose tensor storage is
+almost all of it, and the pickle that decides what executes on load is one
+small member, so HTTP range requests can read that member and leave the
+weights on the server. `quickset/rangefetch.py` does this;
+`scripts/range_compare.py` is the reason to believe it.
+
+What the fetcher writes is **not a fragment handed to the scanner**. It is a
+sparse local copy of the remote file: the same filename, the same total
+length, the fetched ranges written at their true offsets, and holes everywhere
+else. The scanner is then pointed at that path and runs its ordinary code over
+it. Nothing about zip parsing, magic sniffing, extension dispatch or the
+scanner's own size limits is reimplemented in the fetcher, so none of it can
+drift out of agreement with the scanner later.
+
+| Format | What is read |
+|---|---|
+| torch zip (`PK`) | end-of-central-directory, the central directory, then per member its local header and first four bytes, then in full only the members the scanner parses |
+| torch legacy (`\x80`) | a prefix grown until every pickle stream in it has reached STOP and the bytes after the last one are plainly not another pickle |
+| SafeTensors | the 8-byte length prefix and the JSON header |
+| GGUF | the header, the KV metadata and the tensor-info table |
+| any flat format past hayward's 500 MB in-memory cap | nothing past the first 4 KB, because the scanner reads nothing either and reports non-coverage from the size alone |
+| ONNX, Keras, TFLite, skops, npz, joblib, msgpack, ... | downloaded whole, or recorded as **not sampled** above the size limit |
+
+**Counting pickle streams is the mistake the legacy strategy exists to avoid.**
+`torch.save`'s legacy path writes *five* of them (magic number, protocol
+version, `sys_info`, the object, and the sorted storage-key list) before a byte
+of tensor data, not the four that a reading of the format suggests. A prefix
+cut after the fourth ends mid-stream, and hayward 1.0.1 reports MFV-SKIP-003
+when it sees one. So the fetcher does not count: it grows the prefix until the
+bytes following the last completed stream are no longer a pickle. Any
+unexplained MFV-SKIP-003 in a range-fetched run is a bug in the fetcher, not a
+property of the model.
+
+**A format with no range strategy is downloaded or recorded, never dropped.**
+An omitted file does not lower a false-positive rate honestly, it corrupts the
+denominator, which is the only thing the exercise produces.
+
+### The gate
+
+A fetcher that is 99% right is useless here, because the output is a rate and
+the errors land directly in it rather than averaging out. So every sampled
+file is scanned twice, once against the sparse range-fetched copy and once
+against the whole file downloaded from the same URL in the same run, and the
+two finding lists are compared verbatim: rule id, severity and message text,
+which carries the zip member name and the resolved callables.
+
+```bash
+python scripts/range_compare.py --sample 260 --max-size 150000000
+```
+
+Measured 2026-08-08 against live Hub repositories with hayward 1.0.1, on 260
+files from 178 repositories covering all fourteen formats the manifest records
+by magic bytes:
+
+```
+compared    260
+DIVERGED    0
+not sampled 0
+errored     0
+
+strategy         files    read              of                share
+------------------------------------------------------------------
+full-small          77       2.5 MB          0.002 GB      100.00%
+full                77    3026.2 MB          3.026 GB      100.00%
+full-fallback        6     152.1 MB          0.152 GB      100.00%
+torch-zip           27      98.5 MB          0.419 GB       23.50%
+torch-legacy        22     126.6 MB          0.947 GB       13.37%
+gguf                12      50.4 MB          0.649 GB        7.76%
+safetensors         39       0.3 MB          0.855 GB        0.04%
+------------------------------------------------------------------
+range strategies   100     275.8 MB          2.870 GB        9.61%
+```
+
+**The whole-download rows are in that table on purpose.** They cannot diverge,
+and they are still the majority of the sample, because the claim being made is
+about the denominator and not about the saving.
+
+**Read the percentages against the file sizes that produced them.** This
+sample is capped at 150 MB per file, because the control half has to download
+everything it compares, and at that size a "checkpoint" is often mostly
+pickle: the smallest torch zips here are 99% pickle member and the strategy
+saves nothing on them. The saving is a function of how much of a file is
+tensor data, so the same fetcher over 48 large real files, from 400 MB to
+165 GB, with no comparison half and therefore no cap, reads **805 MB of
+1,242 GB, 0.065%**: 1.2% on multi-gigabyte torch shards (including a zip64
+one), 0.001% on SafeTensors, and 4 KB flat on GGUF quantisations past the
+scanner's in-memory cap.
+
+The politeness cost is requests, not bytes. A member's first four bytes have
+to be read to know whether the scanner will parse it, and those windows sit
+megabytes apart, so a checkpoint with three hundred storages takes a few
+hundred range requests however few bytes they carry. Narrow gaps are bridged
+against a byte budget to cut that down; the run above averaged four requests
+per file and peaked at 120.
+
+**One gap is real and this design does not close it.** A whole-buffer pass
+over a region that was never fetched reads zeros. Hayward has one, the
+embedded-executable scan behind MFV-EXEC-001, which runs over every byte of
+files under its in-memory cap. Ranges that *are* fetched (container headers,
+pickle members, metadata) are covered normally, so a binary stapled into a
+pickle member is still found; one buried in raw tensor data between two
+fetched ranges is not. That is a property of range reading, not of this
+implementation, and the comparison above is how often it costs anything rather
+than an argument that it cannot.
+
 ## Design decisions
 
 **No malicious files are committed.** Cases are specifications; bytes are generated into a temp directory at run time. A repository full of working pickle RCE payloads is a weapons cache, hazardous to contributors and likely to be flagged by the host.

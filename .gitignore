@@ -8,4 +8,5 @@ external-cache/
 scripts/.cache/
 sweep-cache/
 sweep-results*.json
+range-compare-results*.json
 safety_results.json

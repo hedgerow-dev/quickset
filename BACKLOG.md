@@ -228,6 +228,34 @@ Note Python 3.13+ cannot run this benchmark: `modelscan` caps at `<3.13`.
   four bypass-PoC repos the sweep surfaced itself. Method, per-file review
   and verbatim results: `docs/hub-sweep-2026-08-04.md` (+ `.json`). Repeat
   on every release candidate.
+* **Done: range-request sampling** (2026-08-08). `quickset/rangefetch.py` reads
+  only the bytes a scanner will look at, so a sweep is no longer bounded by
+  download volume. It writes a *sparse* copy of the remote file, same name and
+  same length with holes where nothing was fetched, rather than a fragment, so
+  the scanner's own zip parsing, magic sniffing, extension dispatch and size
+  limits all run unchanged over real bytes at real offsets and cannot drift out
+  of agreement with a fetcher that re-derived them. Proved by
+  `scripts/range_compare.py`, which scans every sampled file both ways and
+  diffs the findings verbatim: 260 files, 178 repositories, all fourteen
+  manifest formats, **0 divergences, 0 errors, 0 recorded as not sampled**. On
+  a separate mix of 48 large files (400 MB to 165 GB, no comparison half and
+  so no size cap) the fetcher reads 805 MB of 1,242 GB. One gap is stated rather
+  than closed: a whole-buffer pass over an unfetched region reads zeros, which
+  for hayward means an executable buried in raw tensor data between two fetched
+  ranges does not reach MFV-EXEC-001.
+* **Both growing prefixes overshoot.** Neither the GGUF metadata section nor a
+  legacy checkpoint's pickle region declares its length anywhere, so the prefix
+  grows blind from 1 MB in steps of four and can fetch several times what it
+  needs. Negligible on a multi-gigabyte file, 8-13% on the 20-45 MB ones in the
+  corpus. A projected hint (GGUF's token-array element count; the pickle walk's
+  own stopping offset) would fix the GGUF side; the legacy side would mostly be
+  fixed by starting smaller.
+* **Range reading costs requests, not bytes.** The scanner reads the first four
+  bytes of every zip member, so the fetcher does too, and a checkpoint with
+  three hundred tensor storages takes a few hundred range requests carrying a
+  few hundred kilobytes. Measured peak on the comparison run: 120 requests for
+  one file, and 304 on a multi-gigabyte shard. That, rather than bandwidth, is
+  what will decide how fast a full Hub sweep can politely go.
 * **Pickle-only.** Nothing covers Keras Lambda layers, ONNX custom operators, or
   GGUF chat-template injection, all of which are model-file code execution and
   all of which Rowan already scans. ColdwaterQ's DEFCON 30 deck points at a
