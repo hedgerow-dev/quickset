@@ -269,6 +269,46 @@ def _scrub(text: str, token: str | None) -> str:
     return text.replace(token, "<redacted>") if token and token in text else text
 
 
+def probe(url: str, *, token: str | None = None, length: int = 4,
+          timeout: int = 60) -> tuple[bytes, int]:
+    """The file's first bytes and its total length, in **one** request.
+
+    `RangeReader` would answer the same question with a HEAD and then a GET.
+    That is the right shape when the whole file is about to be read, and the
+    wrong shape when thousands of remote files are being classified to decide
+    which ones are worth reading at all: the second request doubles what a
+    selection pass costs the Hub for nothing. A 206 carries the total length
+    in its `Content-Range`, so one ranged GET answers both halves.
+
+    Raises `RangeFetchError` rather than returning a sentinel. A file that
+    cannot be classified must be skipped by the caller, never guessed at.
+    """
+    headers = {
+        "User-Agent": USER_AGENT,
+        "Accept-Encoding": "identity",
+        "Range": f"bytes=0-{max(0, length - 1)}",
+    }
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    request = urllib.request.Request(url, headers=headers)
+    try:
+        with _OPENER.open(request, timeout=timeout) as response:
+            if response.status != 206:
+                raise RangeFetchError(f"probe returned {response.status}, not 206")
+            head = response.read(length)
+            content_range = response.headers.get("Content-Range", "")
+    except urllib.error.HTTPError as exc:
+        raise RangeFetchError(_scrub(f"HTTP {exc.code}: {exc.reason}", token)) from None
+    except RangeFetchError:
+        raise
+    except Exception as exc:
+        raise RangeFetchError(_scrub(str(exc), token)) from None
+    total = content_range.rsplit("/", 1)[-1]
+    if not total.isdigit():
+        raise RangeFetchError("no total length in Content-Range")
+    return head, int(total)
+
+
 class RangeReader:
     """A remote file read in pieces, counting every byte pulled.
 
@@ -807,7 +847,7 @@ def materialize(
         else:
             copy.fetch([(0, 4096)])
             head = copy.at(0, 4096)
-            plan.strategy = _choose(head, suffix)
+            plan.strategy = choose_strategy(head, suffix)
 
             if plan.strategy in ("torch-legacy", "gguf") and reader.size > MAX_SCAN_BYTES:
                 # Above its in-memory cap the scanner reads nothing but the
@@ -871,7 +911,7 @@ def materialize(
     return plan
 
 
-def _choose(head: bytes, suffix: str) -> str:
+def choose_strategy(head: bytes, suffix: str) -> str:
     """Pick a strategy from the file's own first bytes and its name."""
     if head[:4] == LOCAL_SIG and suffix in PICKLE_ZIP_EXTS:
         return "torch-zip"

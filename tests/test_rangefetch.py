@@ -150,7 +150,7 @@ def test_gguf_truncated_in_its_metadata_asks_for_more():
     (b"\x08\x00\x12", ".onnx", "full"),
 ])
 def test_strategy_dispatch(head, suffix, expected):
-    assert rangefetch._choose(head, suffix) == expected
+    assert rangefetch.choose_strategy(head, suffix) == expected
 
 
 # ── end to end against a range-speaking server ──────────────────────────
