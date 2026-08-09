@@ -142,9 +142,9 @@ drift out of agreement with the scanner later.
 
 | Format | What is read |
 |---|---|
-| torch zip (`PK`) | end-of-central-directory, the central directory, then per member its local header and first four bytes, then in full only the members the scanner parses |
+| torch zip (`PK`) | end-of-central-directory, the central directory, then per member its local header, its trailing data descriptor and its first 64 KB, then in full only the members a scanner parses |
 | torch legacy (`\x80`) | a prefix grown until every pickle stream in it has reached STOP and the bytes after the last one are plainly not another pickle |
-| SafeTensors | the 8-byte length prefix and the JSON header |
+| SafeTensors | the 8-byte length prefix, the JSON header, and 64 KB past it |
 | GGUF | the header, the KV metadata and the tensor-info table |
 | any flat format past hayward's 500 MB in-memory cap | nothing past the first 4 KB, because the scanner reads nothing either and reports non-coverage from the size alone |
 | ONNX, Keras, TFLite, skops, npz, joblib, msgpack, ... | downloaded whole, or recorded as **not sampled** above the size limit |
@@ -168,17 +168,19 @@ denominator, which is the only thing the exercise produces.
 A fetcher that is 99% right is useless here, because the output is a rate and
 the errors land directly in it rather than averaging out. So every sampled
 file is scanned twice, once against the sparse range-fetched copy and once
-against the whole file downloaded from the same URL in the same run, and the
-two finding lists are compared verbatim: rule id, severity and message text,
-which carries the zip member name and the resolved callables.
+against the whole file downloaded from the same URL in the same run, and
+hayward's two finding lists are compared verbatim: rule id, severity and
+message text, which carries the zip member name and the resolved callables.
+Every other scanner is compared too, on the fields the comparative study
+scores; that table is below this one.
 
 ```bash
 python scripts/range_compare.py --sample 260 --max-size 150000000
 ```
 
-Measured 2026-08-08 against live Hub repositories with hayward 1.0.1, on 260
-files from 178 repositories covering all fourteen formats the manifest records
-by magic bytes:
+Measured 2026-08-09 against live Hub repositories, on 260 files from 178
+repositories covering all fourteen formats the manifest records by magic
+bytes:
 
 ```
 compared    260
@@ -191,17 +193,81 @@ strategy         files    read              of                share
 full-small          77       2.5 MB          0.002 GB      100.00%
 full                77    3026.2 MB          3.026 GB      100.00%
 full-fallback        6     152.1 MB          0.152 GB      100.00%
-torch-zip           27      98.5 MB          0.419 GB       23.50%
+torch-zip           27     128.0 MB          0.419 GB       30.55%
 torch-legacy        22     126.6 MB          0.947 GB       13.37%
 gguf                12      50.4 MB          0.649 GB        7.76%
-safetensors         39       0.3 MB          0.855 GB        0.04%
+safetensors         39       2.9 MB          0.855 GB        0.33%
 ------------------------------------------------------------------
-range strategies   100     275.8 MB          2.870 GB        9.61%
+range strategies   100     307.9 MB          2.870 GB       10.73%
 ```
 
 **The whole-download rows are in that table on purpose.** They cannot diverge,
 and they are still the majority of the sample, because the claim being made is
 about the denominator and not about the saving.
+
+### The gate, for the other four scanners
+
+The table above is one scanner's answer to a plan built around one scanner's
+reads, which is not evidence about anybody else. picklescan, modelscan,
+fickling and modelaudit read differently, and any of them could read a hole,
+see zeros, and return a verdict that is a property of our optimisation. In a
+study that compares our tool against theirs that would quietly disadvantage
+the competition and would not show up anywhere in the results, so
+`PREREGISTRATION.md` section 7 makes per-scanner zero divergence a gate on the
+whole study.
+
+The same harness therefore runs every adapter over both copies and diffs the
+three fields the study scores, `flagged`, `flagged_lenient` and `errored`,
+plus the detail string with the scanned path normalised out of it. **A detail
+difference under an unchanged verdict fails the gate too.** It is the scanner
+saying it read different bytes, and whether that moved a scored field on this
+particular file is an accident of which files the sample holds.
+
+```
+scanner       models  sparse  verdicts  on sparse  diverged  detail  gate
+picklescan       260      86       218         83         0       0  PASS
+modelscan        260      86        90         37         0       0  PASS
+modelaudit       260      86       260         86         0       0  PASS
+fickling         260      86       106         34         0       0  PASS
+hayward          260      86       260         86         0       0  PASS
+```
+
+**"On sparse" is the column that matters, and it is why the run refuses to
+start with a scanner missing from `PATH`.** A scanner that never ran diverges
+on nothing. One that only ever saw whole downloads diverges on nothing either,
+and both would print a flawless row. Only a copy with holes in it can show
+that the holes cost something, so the gate is verdicts on sparse copies, not
+verdicts. The counts differ because these tools support different formats:
+modelscan reads 90 of the 260 files at all, fickling 106, and that is a
+finding for the study rather than a fault in the harness.
+
+**Getting there took three widenings, all for modelaudit.** The first plan
+disagreed with it on 28 files: every torch zip, and two SafeTensors. The
+diagnoses, in the order they were found:
+
+- It validates every central-directory entry against the local entry it names,
+  including the trailing data descriptor. One skipped header, and it declares
+  the directory inconsistent and abandons the archive.
+- Its format router structurally probes the bytes after a SafeTensors header
+  to rule out a pickle hiding behind the extension. On zeros the probe never
+  resolves, so it routes the file nowhere and reports no verdict, turning a
+  clean 44 MB checkpoint into a no-verdict.
+- It classifies every zip member from a probe window of its own. When that
+  window runs off the end of a short member, `zipfile` verifies the CRC, and
+  against a hole the CRC fails: "CRC validation failed for archive member", a
+  warning about our fetch dressed as a warning about the model.
+
+Each was fixed by fetching what modelaudit reads rather than by excluding it,
+which is the remedy the pre-registration prefers and the only one that keeps
+the comparison honest. The cost is in the torch-zip and SafeTensors rows
+above: 23.5% became 30.6%, and 0.04% became 0.33%.
+
+**The last one is the one to remember.** On every checkpoint in this sample
+the CRC warning changed no scored field, because those files already carried a
+warning for other reasons. On a clean checkpoint it would have flipped
+modelaudit's lenient threshold, and the study would have published a false
+positive that we caused. A gate on the scored verdict alone would have passed
+it.
 
 **Read the percentages against the file sizes that produced them.** This
 sample is capped at 150 MB per file, because the control half has to download
@@ -209,17 +275,20 @@ everything it compares, and at that size a "checkpoint" is often mostly
 pickle: the smallest torch zips here are 99% pickle member and the strategy
 saves nothing on them. The saving is a function of how much of a file is
 tensor data, so the same fetcher over 48 large real files, from 400 MB to
-165 GB, with no comparison half and therefore no cap, reads **805 MB of
+165 GB, with no comparison half and therefore no cap, read **805 MB of
 1,242 GB, 0.065%**: 1.2% on multi-gigabyte torch shards (including a zip64
 one), 0.001% on SafeTensors, and 4 KB flat on GGUF quantisations past the
-scanner's in-memory cap.
+scanner's in-memory cap. That sweep predates the widening below and has not
+been repeated, so read it as the floor rather than the current figure: the
+widening adds 64 KB per zip member and 64 KB per SafeTensors file, which on
+`all-MiniLM-L6-v2` moves the torch zip from 223 KB of 90 MB to 2.9 MB of
+90 MB, and the SafeTensors from 8 KB to 77 KB.
 
-The politeness cost is requests, not bytes. A member's first four bytes have
-to be read to know whether the scanner will parse it, and those windows sit
-megabytes apart, so a checkpoint with three hundred storages takes a few
-hundred range requests however few bytes they carry. Narrow gaps are bridged
-against a byte budget to cut that down; the run above averaged four requests
-per file and peaked at 120.
+The politeness cost is requests, not bytes. A member's probe window has to be
+read to know whether a scanner will parse it, and those windows sit megabytes
+apart, so a checkpoint with three hundred storages takes a few hundred range
+requests however few bytes they carry. Narrow gaps are bridged against a byte
+budget to cut that down.
 
 **One gap is real and this design does not close it.** A whole-buffer pass
 over a region that was never fetched reads zeros. Hayward has one, the

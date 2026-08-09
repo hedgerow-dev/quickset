@@ -1,4 +1,5 @@
-"""Prove the range fetcher reads enough by scanning every file both ways.
+"""Prove the range fetcher reads enough by scanning every file both ways,
+with every scanner the comparative study will run.
 
 `quickset.rangefetch` reads a fraction of a percent of a remote checkpoint.
 The interesting question is not how little it reads, it is whether the verdict
@@ -8,10 +9,32 @@ errors do not average out, they land directly in the number.
 
 So every sampled file is scanned twice, once against the sparse range-fetched
 copy and once against the whole file downloaded from the same URL in the same
-run, and the two finding lists are compared verbatim: rule id, severity and
-message text, which carries the zip member name and the resolved callables.
-Any difference is a divergence and is recorded per file. Zero is the only
-acceptable result, and the count is reported whatever it is.
+run, and the two results are compared.
+
+**The fetch plan was designed around hayward's read pattern, so hayward's
+zero-divergence result does not transfer to anyone else.** picklescan,
+modelscan, fickling and modelaudit read differently. Any of them may read a
+region we never fetched, see the zeros in the hole, and return a verdict that
+is a property of our optimisation rather than of the model. In a study that
+compares our tool against theirs that would silently disadvantage the
+competition and would be invisible in the results, which is why
+`PREREGISTRATION.md` section 7 makes per-scanner zero divergence a gate on the
+whole study rather than a nice-to-have.
+
+Two comparisons therefore run per file:
+
+- **Every adapter in `quickset.adapters`**, both ways, diffed on the fields
+  the study actually scores: `flagged`, `flagged_lenient` and `errored`, plus
+  the detail string once the scanned path has been normalised out of it.
+- **hayward's full finding list**, both ways, verbatim: rule id, severity and
+  message text, which carries the zip member name and the resolved callables.
+  This is strictly harder than the boolean diff and it is the existing proof,
+  so it stays.
+
+A scanner that never ran is not a scanner that agreed. Every adapter must
+report itself available before the run starts, and the summary states how many
+files each one actually returned a verdict on, because an adapter that skips
+every file diverges on nothing and would otherwise pass the gate perfectly.
 
 Sampling is seeded from `quickset/benign-models.json`, which is committed and
 records each entry's format as determined from its magic bytes. That is what
@@ -29,9 +52,12 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
+import re
 import shutil
 import subprocess
 import sys
+import sysconfig
 import tempfile
 import time
 import urllib.error
@@ -43,8 +69,21 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
+# Every adapter shells out to a CLI, so the interpreter running this script
+# decides which scanners exist. Without this the harness happily finds a
+# system-wide picklescan of some other version, or finds nothing and reports
+# a flawless zero-divergence run over five scanners that never started.
+#
+# `sysconfig`, not `sys.executable`: a uv virtualenv's `python` is a symlink
+# to the interpreter it was built from, so resolving it lands in uv's own
+# toolchain directory, where none of the scanners are.
+os.environ["PATH"] = os.pathsep.join(
+    [sysconfig.get_path("scripts"), os.environ.get("PATH", "")]
+)
+
+from quickset.adapters import all_adapters  # noqa: E402
 from quickset.rangefetch import (  # noqa: E402
-    DEFAULT_FULL_LIMIT, RangeFetchError, materialize,
+    DEFAULT_FULL_LIMIT, RangeFetchError, materialize, quote_path,
 )
 
 HTTP_CACHE = ROOT / "scripts" / ".cache"
@@ -53,6 +92,26 @@ RESULTS = ROOT / "range-compare-results.json"
 API = "https://huggingface.co"
 SCANNER = "hayward"
 MAX_SCAN_SECONDS = 300
+
+ADAPTERS = all_adapters()
+
+# PREREGISTRATION.md section 7: at least 200 models, per scanner, not in
+# aggregate.
+MIN_MODELS = 200
+
+# Floor under "this adapter actually ran", applied both to files in general
+# and to sparse copies in particular. Not a coverage grade -- fickling and
+# picklescan legitimately decline most non-pickle formats, and that is a
+# finding for the study, not a fault here. It exists so that an adapter which
+# returns no verdict on anything cannot pass the gate by agreeing with itself
+# about nothing.
+MIN_VERDICTS = 25
+
+# Scanners print the path they were handed, and the two copies of a file live
+# in different directories by construction, so an unnormalised detail string
+# differs on every file for a reason that is not a divergence. Both paths sit
+# under one `rangecmp-` temporary root, so one pattern covers them.
+_SCANNED_PATH = re.compile(r"\S*rangecmp-\S*")
 
 MODEL_EXTS = (
     ".bin", ".pt", ".pth", ".ckpt", ".pkl", ".pickle", ".joblib",
@@ -70,8 +129,6 @@ def _hf_token() -> str | None:
     """Optional, as everywhere else in this repo: a published result has to be
     reproducible by someone who has no credential. What it buys is fewer
     dropped connections, measured at Hub scale by `scripts/hub_sweep.py`."""
-    import os
-
     env = os.environ.get("HF_TOKEN") or os.environ.get("HUGGING_FACE_HUB_TOKEN")
     if env:
         return env.strip()
@@ -104,7 +161,7 @@ def _request(url: str) -> urllib.request.Request:
 
 
 def _url(repo: str, path: str) -> str:
-    return f"{API}/{repo}/resolve/main/{path}"
+    return f"{API}/{repo}/resolve/main/{quote_path(path)}"
 
 
 def seed_candidates() -> list[dict]:
@@ -235,6 +292,62 @@ def scan(path: Path) -> dict:
     }
 
 
+# ── the five scanners, both ways ────────────────────────────────────────
+
+
+def _outcome(o) -> dict:
+    return {
+        "flagged": o.flagged,
+        "flagged_lenient": o.flagged_lenient,
+        "errored": o.errored,
+        "detail": _SCANNED_PATH.sub("<path>", o.detail),
+    }
+
+
+def _verdict(o: dict) -> tuple:
+    """The three fields `PREREGISTRATION.md` section 4 scores on."""
+    return (o["flagged"], o["flagged_lenient"], o["errored"])
+
+
+def _diff(ranged: dict, whole: dict) -> tuple[bool, bool]:
+    """Whether the scored verdict differs, and whether the detail does.
+
+    Kept apart because they are not the same claim. A different verdict means
+    the study would record a different row for this file depending on how it
+    was fetched, which is the thing that invalidates the method. A different
+    detail on the same verdict is weaker evidence of the same disease: the
+    scanner saw different bytes and said so, even though the bucket did not
+    move. Both are reported; neither is folded into the other.
+    """
+    return _verdict(ranged) != _verdict(whole), ranged["detail"] != whole["detail"]
+
+
+def scan_both(adapter, ranged_path: Path, full_path: Path) -> dict:
+    """One scanner, one file, both copies.
+
+    A divergence is re-measured once before it is believed. Two of the three
+    scored fields can be set by a timeout, and a timeout is a property of the
+    machine on the day rather than of the bytes; reporting a scheduling
+    accident as evidence that a competitor cannot be range-fetched would be
+    the same error as hiding a real one, in the other direction. Both readings
+    are recorded either way, and a divergence that does not reproduce is still
+    counted and still printed, marked as not reproducible.
+    """
+    ranged = _outcome(adapter.scan(ranged_path))
+    whole = _outcome(adapter.scan(full_path))
+    kind = _diff(ranged, whole)
+    entry = {
+        "range": ranged, "full": whole,
+        "verdict_diverged": kind[0], "detail_diverged": kind[1],
+    }
+    if any(kind):
+        again = (_outcome(adapter.scan(ranged_path)),
+                 _outcome(adapter.scan(full_path)))
+        entry["repeat"] = {"range": again[0], "full": again[1]}
+        entry["reproducible"] = _diff(*again) == kind
+    return entry
+
+
 def compare(item: dict, args) -> dict:
     """One file, both ways. Anything unexpected is recorded against the file
     rather than raised: a single bad archive must not end a run of hundreds,
@@ -291,6 +404,12 @@ def _compare(item: dict, args) -> dict:
             # worth knowing which of the two a surprise is.
             record["pinned_hash_ok"] = _sha256(full) == item["sha256"]
 
+        # The sparse copy only has holes when the strategy left some. A whole
+        # download cannot diverge from itself, and the summary counts the two
+        # separately so the headline is not padded with files that were never
+        # at risk.
+        record["sparse"] = plan.bytes_read < plan.file_size
+
         try:
             ranged = scan(work / "range" / name)
             whole = scan(full)
@@ -306,6 +425,14 @@ def _compare(item: dict, args) -> dict:
             record["full_only"] = [f for f in whole["findings"]
                                    if f not in ranged["findings"]]
             record["gaps"] = [ranged["coverage_gaps"], whole["coverage_gaps"]]
+
+        # Every scanner the study will run, over the same two copies. Adapters
+        # convert a timeout and a crash into an outcome rather than raising,
+        # so one hostile archive cannot end the run.
+        record["scanners"] = {
+            adapter.name: scan_both(adapter, work / "range" / name, full)
+            for adapter in ADAPTERS
+        }
         return record
     finally:
         shutil.rmtree(work, ignore_errors=True)
@@ -327,6 +454,17 @@ def main() -> int:
     parser.add_argument("--out", type=Path, default=RESULTS)
     args = parser.parse_args()
 
+    missing = [a.name for a in ADAPTERS if not a.available()]
+    if missing:
+        # Refusing is the point. A missing scanner produces no verdicts, and
+        # no verdicts produce no divergences, so continuing would print a
+        # perfect result for a scanner that never started.
+        print(f"REFUSING: no executable on PATH for {', '.join(missing)}")
+        print(f"PATH begins {os.environ['PATH'].split(os.pathsep)[0]}")
+        return 1
+    versions = {a.name: a.version() for a in ADAPTERS}
+    print("scanners: " + ", ".join(f"{n} {v}" for n, v in versions.items()))
+
     chosen = choose(args.sample, args.max_size)
     print(f"{len(chosen)} candidates, "
           f"{len({c['repo'] for c in chosen})} repos, "
@@ -340,19 +478,27 @@ def main() -> int:
     results: list[dict] = []
     with ThreadPoolExecutor(max_workers=args.jobs) as pool:
         for i, record in enumerate(pool.map(lambda c: compare(c, args), chosen), 1):
+            record["versions"] = versions
             results.append(record)
             if i % 25 == 0:
-                diverged = sum(1 for r in results if r.get("diverged"))
-                print(f"  {i}/{len(chosen)}  diverged so far: {diverged}", flush=True)
+                print(f"  {i}/{len(chosen)}  diverged so far: "
+                      f"{sum(1 for r in results if _any_divergence(r))}", flush=True)
                 args.out.write_text(json.dumps(results, indent=1), encoding="utf-8")
     args.out.write_text(json.dumps(results, indent=1), encoding="utf-8")
 
-    summarize(results)
+    passed = summarize(results)
     print(f"\nfull results: {args.out}")
-    return 1 if any(r.get("diverged") for r in results) else 0
+    return 0 if passed else 1
 
 
-def summarize(results: list[dict]) -> None:
+def _any_divergence(record: dict) -> bool:
+    if record.get("diverged"):
+        return True
+    return any(e["verdict_diverged"] or e["detail_diverged"]
+               for e in (record.get("scanners") or {}).values())
+
+
+def summarize(results: list[dict]) -> bool:
     compared = [r for r in results if "diverged" in r]
     errored = [r for r in results if r.get("error")]
     unsampled = [r for r in results if r.get("sampled") is False]
@@ -401,13 +547,95 @@ def summarize(results: list[dict]) -> None:
             print(f"  {r['repo']}/{r['path']}: {r['error']}")
 
     if diverged:
-        print("\nDIVERGENCES:")
+        print("\nDIVERGENCES (hayward, finding level):")
         for r in diverged:
             print(f"  {r['repo']}/{r['path']}  [{r.get('strategy')}]")
             for f in r.get("range_only", []):
                 print(f"    range only: {f[0]} {f[1]} {f[2][:120]}")
             for f in r.get("full_only", []):
                 print(f"    full only:  {f[0]} {f[1]} {f[2][:120]}")
+
+    return per_scanner(compared) and not diverged
+
+
+def per_scanner(compared: list[dict]) -> bool:
+    """The gate itself: one verdict per scanner, never an aggregate.
+
+    Aggregating would let four scanners that agree on everything absorb a
+    fifth that does not, which is the exact failure this whole stage exists to
+    catch.
+    """
+    rows = [r for r in compared if r.get("scanners")]
+    names = [a.name for a in ADAPTERS]
+    passed = True
+
+    print("\nper scanner, sparse copy against whole download:")
+    print(f"  {'scanner':12} {'models':>7} {'sparse':>7} {'verdicts':>9} "
+          f"{'on sparse':>10} {'diverged':>9} {'detail':>7}  gate")
+    for name in names:
+        seen = [r for r in rows if name in r["scanners"]]
+        sparse = [r for r in seen if r.get("sparse")]
+        # A verdict is what the whole-download read produced. Taking it from
+        # the range read instead would let a scanner that errors only on the
+        # sparse copy look like a scanner that never supported the format.
+        verdicts = [r for r in seen if not r["scanners"][name]["full"]["errored"]]
+        # The number the gate actually rests on. A scanner can return verdicts
+        # on two hundred files and still be untested by this harness if every
+        # one of them was a whole download: only a copy with holes in it can
+        # show that the holes matter. Counted on files that are both sparse
+        # and read, so a format the scanner declines does not inflate it.
+        on_sparse = [r for r in verdicts if r.get("sparse")]
+        bad = [r for r in seen if r["scanners"][name]["verdict_diverged"]]
+        detail = [r for r in seen
+                  if r["scanners"][name]["detail_diverged"]
+                  and not r["scanners"][name]["verdict_diverged"]]
+        failures = []
+        if len(seen) < MIN_MODELS:
+            failures.append(f"under {MIN_MODELS} models")
+        if len(verdicts) < MIN_VERDICTS:
+            failures.append(f"verdict on {len(verdicts)} files only")
+        if len(on_sparse) < MIN_VERDICTS:
+            failures.append(f"verdict on {len(on_sparse)} sparse copies only")
+        # Both kinds fail. The tempting rule is to gate on the scored verdict
+        # alone, since that is what a published row contains -- and it is the
+        # wrong rule. A detail difference is the scanner saying it read
+        # different bytes; whether that moved a scored field on this
+        # particular file is luck. Measured here: modelaudit adds a CRC
+        # warning for each member left as a hole, which changes nothing on a
+        # checkpoint that already carries a warning and flips the lenient
+        # threshold on one that does not. Gating on the verdict alone would
+        # have passed that on the strength of which files the sample happened
+        # to contain. Each failure is adjudicated in the report rather than
+        # argued away here.
+        if bad or detail:
+            failures.append(
+                f"{len(bad)} verdict, {len(detail)} detail divergences")
+        passed = passed and not failures
+        verdict = "PASS" if not failures else "FAIL: " + ", ".join(failures)
+        print(f"  {name:12} {len(seen):7} {len(sparse):7} {len(verdicts):9} "
+              f"{len(on_sparse):10} {len(bad):9} {len(detail):7}  {verdict}")
+
+    formats = sorted({r.get("fmt", "?") for r in rows})
+    strategies = sorted({r.get("strategy", "?") for r in rows})
+    print(f"\n  {len(formats)} formats: {', '.join(formats)}")
+    print(f"  {len(strategies)} strategies: {', '.join(strategies)}")
+
+    for name in names:
+        hits = [r for r in rows
+                if r["scanners"][name]["verdict_diverged"]
+                or r["scanners"][name]["detail_diverged"]]
+        if not hits:
+            continue
+        print(f"\nDIVERGENCES, {name}:")
+        for r in hits:
+            entry = r["scanners"][name]
+            kind = "verdict" if entry["verdict_diverged"] else "detail"
+            repeated = "" if entry.get("reproducible", True) else "  NOT REPRODUCIBLE"
+            print(f"  {r['repo']}/{r['path']}  [{r.get('strategy')}, "
+                  f"{r.get('fmt')}]  {kind}{repeated}")
+            print(f"    range: {entry['range']}")
+            print(f"    full:  {entry['full']}")
+    return passed
 
 
 if __name__ == "__main__":

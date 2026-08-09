@@ -4,13 +4,15 @@ A Hub-scale false-positive measurement is bounded by download volume, not by
 scan time: a torch checkpoint is a zip whose tensor storage is almost all of
 it, and the pickle that decides what executes on load is one small member.
 HTTP range requests read that member and leave the weights on the server.
-Measured on `sentence-transformers/all-MiniLM-L6-v2`: 223 KB of 90 MB, 0.25%.
+Measured on `sentence-transformers/all-MiniLM-L6-v2`: 2.9 MB of 90 MB, 3.2%.
 (An earlier prototype managed 84 KB on the same file by reading `data.pkl` and
-nothing else. The difference is the four bytes per member the scanner's own
-member sniff needs, plus the storage blobs whose first bytes happen to open
-like a pickle. Both are bytes the scanner reads, so both are bytes the fetcher
-has to read to reach the same verdict; the 84 KB version was cheaper because
-it was answering a slightly different question.)
+nothing else, and a hayward-only plan managed 223 KB. Each step up bought
+agreement with a reader that looks at more of the container: the member sniff
+needs four bytes of every member, the storage blobs that open like a pickle
+have to be read as pickles, and modelaudit classifies every member from a
+window of its own. Every one of those is bytes some scanner reads, so every
+one is bytes the fetcher has to read to reach the same verdict. The cheaper
+versions were cheaper because they were answering a narrower question.)
 
 What this module produces is **not** a fragment handed to the scanner. It is a
 *sparse local copy* of the remote file: same name, same total length, the
@@ -41,15 +43,27 @@ Ranges we do fetch (headers, pickle members, metadata) are covered normally.
 `scripts/range_compare.py` exists to measure whether that gap ever shows up on
 real repositories rather than to argue that it cannot.
 
+**The plan is the union of what five scanners read, not what hayward reads.**
+That distinction was expensive to learn. A plan cut to hayward's own read
+pattern agreed with hayward on 260 files and disagreed with modelaudit on
+every torch zip in the same sample, because modelaudit validates parts of the
+container hayward never looks at. In a study comparing the two, a hole is not
+a neutral optimisation: it is a competitor being scored on bytes we chose not
+to fetch. Where a comment below says a window exists for another scanner, that
+is why it is there and why it does not come out.
+
 Formats and what gets read:
 
     torch zip (PK)      end-of-central-directory, the central directory, then
-                        per member: the local header and the first four bytes,
-                        then in full only the members the scanner will parse
+                        per member: the local header, its trailing data
+                        descriptor and the first four bytes, then in full only
+                        the members a scanner will parse
     torch legacy (\\x80) a prefix grown until every pickle stream in it has
                         reached STOP and the bytes after the last one are
                         plainly not another pickle
-    safetensors         the 8-byte length prefix and the JSON header
+    safetensors         the 8-byte length prefix, the JSON header, and the
+                        probe window past it that modelaudit's format router
+                        reads before it will route the file at all
     gguf                the header, the KV metadata and the tensor-info table
     flat, oversized     nothing past the first 4 KB: past the scanner's
                         in-memory cap a non-container format is not read at
@@ -68,6 +82,7 @@ import pickletools
 import struct
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 import zipfile
 from dataclasses import dataclass, field
@@ -95,6 +110,66 @@ MAX_COALESCE_GAP = 256 * 1024
 # and a short read is corrected, so this is a round-trip optimisation and not
 # an assumption.
 LOCAL_HEADER_SLACK = 128
+
+# A streamed zip member repeats its CRC and sizes in a descriptor after the
+# data: 16 bytes, 24 with zip64 sizes, either optionally preceded by a 4-byte
+# signature. 24 covers every combination, and the window lands immediately
+# before the next member's local header, so the coalescer folds the two into
+# one request and the descriptors cost bytes rather than round trips.
+#
+# Hayward does not read these. modelaudit does, for every member the central
+# directory names, and a hole where one should be aborts its entire zip
+# analysis (`_ZipLocalEntryMismatch`), which is not a verdict about the model.
+ZIP_DATA_DESCRIPTOR_BYTES = 24
+
+# How much of every zip member is fetched regardless of what its first bytes
+# look like.
+#
+# Hayward sniffs four bytes and reads no further unless they open a pickle.
+# modelaudit classifies every member instead: 16 bytes, then up to 64 KB when
+# those bytes could begin a pickle (`_PICKLE_DISCOVERY_LONG_PROBE_BYTES` in
+# modelaudit 0.2.52). 64 KB is the longest probe it runs over a member it has
+# not otherwise selected, and the size is what makes both halves work:
+#
+# - a member of 64 KB or less is fetched whole, so when a probe runs off the
+#   end of it and zipfile verifies the CRC, the CRC is right;
+# - a larger member is never read to its end by such a probe, so no CRC is
+#   verified and the bytes read are real ones.
+#
+# Without it, a probe that reached the end of a short member on a hole
+# produced "CRC validation failed for archive member ...", a warning about our
+# fetch presented as a warning about the model. On a checkpoint already
+# carrying a warning that changed nothing; on a clean one it would have
+# flipped the lenient threshold.
+#
+# This is *not* a proof that 64 KB is every byte modelaudit can want from a
+# member. Its deeper reads are larger (a megabyte of TorchScript source, ten
+# for storage trust metadata) and are selected by member name or by a
+# pickle-looking prefix, which is the rule that fetches whole members below.
+# What backs the combination is the measurement in `scripts/range_compare.py`,
+# not this comment.
+ZIP_MEMBER_PROBE_BYTES = 65_536
+
+# How far past a safetensors header the fetcher reads.
+#
+# Hayward needs none of it. modelaudit's format router does: before it will
+# route a `.safetensors` file to its safetensors scanner it structurally
+# probes the bytes after the header to rule out a pickle hiding behind the
+# extension, and this is the size of that first probe window
+# (`PROTO0_1_MAX_PROBE_BYTES` in modelaudit 0.2.52). Reading zeros there
+# leaves the probe undecided, the router answers
+# "pickle_routing_inconclusive", and no scanner runs at all: measured, a
+# 44 MB checkpoint that scans clean whole became a no-verdict range-fetched.
+# A no-verdict is a column in the study's own results, so a fetch artifact
+# that produces one would land directly in a published number.
+#
+# The residual risk is stated rather than hidden: when that first probe is
+# still undecided after 64 KB of real bytes, modelaudit widens it to 16 MB and
+# the rest of what it reads is hole again. The window is not raised to 16 MB
+# because that is two thousand times the bytes for a case the comparison run
+# does not produce, and the failure mode if it ever does is loud -- the file
+# becomes a no-verdict, not a wrong verdict.
+SAFETENSORS_PROBE_BYTES = 65_536
 
 # Mirrors hayward's own limits. Both decide what the scanner reads, so the
 # fetcher has to agree with them to fetch the same bytes.
@@ -127,6 +202,22 @@ PICKLE_ZIP_EXTS = frozenset({
 
 class RangeFetchError(Exception):
     """The remote file could not be read the way this module intended."""
+
+
+def quote_path(path: str) -> str:
+    """Percent-encode a repository file path for use in a URL.
+
+    Per segment with `safe=""`, so the `/` separators survive and everything
+    else does not. urllib does no encoding of its own: handed a raw name it
+    raises "URL can't contain control characters" and the file is recorded as
+    a fetch error, which is how a Hub census lost every file whose name held a
+    space or a CJK character.
+
+    Callers build the URL, so callers encode it. Doing it inside `materialize`
+    would mean re-encoding a string that may already be encoded, and a name
+    containing a literal `%` makes those two cases indistinguishable.
+    """
+    return "/".join(urllib.parse.quote(part, safe="") for part in path.split("/"))
 
 
 @dataclass
@@ -581,17 +672,23 @@ def _plan_zip(copy: SparseCopy, plan: RangePlan) -> None:
     # four, so those have to be fetched for every member the scanner would
     # sniff. Members outside the size bounds are read by neither the pickle
     # sniff nor the nested-zip descent, so neither reads them here.
+    #
+    # The *header* of every member is fetched regardless of that filter.
+    # modelaudit walks the central directory and checks each entry against the
+    # local header it points at, so a single skipped header (measured: a
+    # zero-length member, and any member over the size bound) makes it declare
+    # the directory inconsistent and abandon the archive. Headers are a couple
+    # of hundred bytes and sit where the fetcher is already reading.
     candidates: list[tuple[zipfile.ZipInfo, bool]] = []
     heads: list[tuple[int, int]] = []
     for info in infos:
         named = (info.filename.endswith((".pkl", ".pickle"))
                  or info.filename.rsplit("/", 1)[-1] == "data.pkl")
-        if not named and not (2 <= info.file_size <= MAX_ZIP_MEMBER_BYTES):
-            continue
-        candidates.append((info, named))
         name_len = len(info.filename.encode("utf-8"))
         heads.append((info.header_offset,
                       info.header_offset + 30 + name_len + LOCAL_HEADER_SLACK + 4))
+        if named or 2 <= info.file_size <= MAX_ZIP_MEMBER_BYTES:
+            candidates.append((info, named))
     copy.fetch(heads)
 
     # The local header's name/extra lengths are authoritative and may differ
@@ -601,8 +698,9 @@ def _plan_zip(copy: SparseCopy, plan: RangePlan) -> None:
     # the same name, and that duplication is itself a parser-differential
     # trick rather than an accident.
     starts: dict[int, int] = {}
+    wanted: list[tuple[int, int]] = []
     corrections: list[tuple[int, int]] = []
-    for info, _named in candidates:
+    for info in infos:
         local = copy.at(info.header_offset, 30)
         if len(local) < 30 or local[:4] != LOCAL_SIG:
             continue
@@ -611,6 +709,14 @@ def _plan_zip(copy: SparseCopy, plan: RangePlan) -> None:
         starts[info.header_offset] = data_start
         if not copy.covered(info.header_offset, data_start + 4):
             corrections.append((info.header_offset, data_start + 4))
+        # Bit 3: sizes live in a descriptor after the data rather than in the
+        # header. torch.save sets it on every member it writes.
+        if struct.unpack("<H", local[6:8])[0] & 0x08:
+            data_end = data_start + info.compress_size
+            wanted.append((data_end, data_end + ZIP_DATA_DESCRIPTOR_BYTES))
+        # The probe window every member gets, whatever its first bytes say.
+        wanted.append((data_start,
+                       data_start + min(info.compress_size, ZIP_MEMBER_PROBE_BYTES)))
     if corrections:
         copy.fetch(corrections)
 
@@ -618,7 +724,6 @@ def _plan_zip(copy: SparseCopy, plan: RangePlan) -> None:
     # bytes open one, everything that is itself a zip, and every deflated
     # member (a partly-fetched deflate stream cannot be sniffed locally
     # without risking a different answer than the scanner's).
-    full: list[tuple[int, int]] = []
     for info, named in candidates:
         data_start = starts.get(info.header_offset)
         if data_start is None:
@@ -632,9 +737,9 @@ def _plan_zip(copy: SparseCopy, plan: RangePlan) -> None:
                 or info.compress_type != zipfile.ZIP_STORED
                 or head.startswith(PICKLE_OPENERS)
                 or head == LOCAL_SIG):
-            full.append((data_start, data_start + take))
+            wanted.append((data_start, data_start + take))
             plan.members.append(info.filename)
-    copy.fetch(full)
+    copy.fetch(wanted)
 
 
 # ── entry point ─────────────────────────────────────────────────────────
@@ -688,13 +793,15 @@ def materialize(
     reader = RangeReader(url, token=token, timeout=timeout)
     suffix = dest.suffix.lower()
 
-    if reader.size == 0:
-        raise RangeFetchError("zero-length file")
-
     with SparseCopy(reader, dest) as copy:
         plan = RangePlan(strategy="", file_size=reader.size)
 
         if reader.size <= SMALL_FILE_BYTES:
+            # A zero-length file lands here and is deliberately not an error.
+            # Nothing failed: it is a file whose contents were read in full,
+            # and the scanner reports it clean. Raising instead put eight
+            # files from two ordinary repositories in the error column of a
+            # census whose whole subject was how often the scanner is wrong.
             _download_full(copy)
             plan.strategy = "full-small"
         else:
@@ -735,7 +842,7 @@ def materialize(
                 # own limit, or running past the end of the file) needs no
                 # bytes past the length the sparse copy already carries.
                 if header_size <= 100_000_000 and 8 + header_size <= reader.size:
-                    copy.fetch([(0, 8 + header_size)])
+                    copy.fetch([(0, 8 + header_size + SAFETENSORS_PROBE_BYTES)])
             elif plan.strategy == "gguf":
                 # Ceiling well past any real metadata section: nothing in the
                 # container declares its length, so the prefix has to grow

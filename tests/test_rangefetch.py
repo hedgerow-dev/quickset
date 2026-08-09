@@ -18,6 +18,7 @@ regression here is caught in a second instead of in an hour of downloads.
 
 from __future__ import annotations
 
+import io
 import json
 import pickle
 import random
@@ -25,6 +26,7 @@ import re
 import struct
 import subprocess
 import threading
+import urllib.parse
 import zipfile
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
@@ -34,7 +36,7 @@ import pytest
 from quickset import rangefetch
 from quickset.rangefetch import (
     NEED_MORE, NOT_A_PICKLE_PREFIX, gguf_structured_end, materialize,
-    pickle_region_end,
+    pickle_region_end, quote_path,
 )
 
 RANGE_RE = re.compile(r"bytes=(\d+)-(\d+)")
@@ -161,10 +163,15 @@ class _RangeHandler(BaseHTTPRequestHandler):
         pass
 
     def _target(self) -> Path:
+        # Decoded first: a client that percent-encodes is doing the right
+        # thing, and a server that compares the raw request path against a
+        # filename cannot find any name that needed encoding.
+        #
         # Basename only. This is a localhost test fixture, but a handler that
         # joins a request path straight onto a directory is a traversal bug
         # wherever it is written.
-        return self.directory / Path(self.path.lstrip("/")).name
+        decoded = urllib.parse.unquote(self.path.lstrip("/"))
+        return self.directory / Path(decoded).name
 
     def do_HEAD(self):
         target = self._target()
@@ -322,6 +329,144 @@ def test_storage_that_opens_like_a_pickle_falls_back_to_the_whole_file(served, t
     assert _scan(tmp_path / "ambiguous.pth") == _scan(root / "ambiguous.pth")
 
 
+class _Unseekable(io.RawIOBase):
+    """A sink with no `tell`, so `zipfile` streams instead of patching.
+
+    `writestr` to an ordinary file seeks back and fills the local header in,
+    leaving no data descriptor and no flag bit 3. torch.save's writer streams,
+    so every member of a real checkpoint carries one. The fixtures above
+    therefore never exercised the layout that every file on the Hub actually
+    has.
+    """
+
+    def __init__(self, handle):
+        self._handle = handle
+
+    def writable(self) -> bool:
+        return True
+
+    def write(self, data):
+        return self._handle.write(data)
+
+
+def _streamed_torch_zip(path: Path, payload: bytes) -> None:
+    with open(path, "wb") as raw:
+        with zipfile.ZipFile(_Unseekable(raw), "w", zipfile.ZIP_STORED) as zf:
+            zf.writestr("archive/data.pkl", payload)
+            zf.writestr("archive/version", "3\n")
+            # Zero length, so the old plan skipped its header entirely: too
+            # small to be a member any scanner would parse, and a member the
+            # central directory still names.
+            zf.writestr("archive/byteorder", b"")
+            for i in range(4):
+                zf.writestr(f"archive/data/{i}", b"\x33\x44" + bytes(200_000))
+
+
+def test_every_member_header_and_descriptor_is_fetched(served, tmp_path):
+    """The sparse copy has to carry the whole zip skeleton, not just the parts
+    hayward parses.
+
+    modelaudit validates every central-directory entry against the local entry
+    it points at, including the trailing data descriptor, and one hole makes
+    it declare the directory inconsistent and abandon the archive: measured on
+    the Hub, it turned every range-fetched torch checkpoint from "3 warnings"
+    into "1 info", which in the comparative study is a competitor scoring
+    differently because of our optimisation. Headers and descriptors are a few
+    hundred bytes and sit where the fetcher already reads, so the fix costs
+    bytes rather than requests.
+    """
+    root, base = served
+    name = "streamed.pt"
+    _streamed_torch_zip(root / name, pickle.dumps({"weight": [1.0, 2.0]}, protocol=2))
+    dest = tmp_path / name
+    plan = materialize(f"{base}/{name}", dest)
+    assert plan.strategy == "torch-zip"
+    assert plan.bytes_read < plan.file_size, "nothing was saved"
+
+    whole = (root / name).read_bytes()
+    sparse = dest.read_bytes()
+    with zipfile.ZipFile(root / name) as zf:
+        infos = zf.infolist()
+    assert any(info.file_size == 0 for info in infos), "fixture lost its empty member"
+    assert all(info.flag_bits & 0x08 for info in infos), "fixture is not streamed"
+    for info in infos:
+        start = info.header_offset
+        name_len, extra_len = struct.unpack("<HH", whole[start + 26:start + 30])
+        header_end = start + 30 + name_len + extra_len
+        assert sparse[start:header_end] == whole[start:header_end], \
+            f"hole in the local header of {info.filename}"
+        data_end = header_end + info.compress_size
+        trailer_end = data_end + rangefetch.ZIP_DATA_DESCRIPTOR_BYTES
+        assert sparse[data_end:trailer_end] == whole[data_end:trailer_end], \
+            f"hole in the data descriptor of {info.filename}"
+
+
+def test_a_safetensors_read_reaches_past_the_header(served, tmp_path):
+    """Hayward reads the header and stops. modelaudit will not route the file
+    to its safetensors scanner until it has structurally probed the bytes
+    after the header for a pickle hiding behind the extension, and on a hole
+    full of zeros that probe never resolves: measured on the Hub, a clean
+    44 MB checkpoint became "no scanner matched", which is a no-verdict in the
+    study's own results caused by nothing but the fetch."""
+    root, base = served
+    # Non-zero tensor data, or the hole and the payload are the same bytes and
+    # the assertion below holds however little was fetched.
+    (root / "model.safetensors").write_bytes(
+        _safetensors_bytes(_noisy_tensor_bytes(size=1_000_000)))
+    dest = tmp_path / "model.safetensors"
+    plan = materialize(f"{base}/model.safetensors", dest)
+
+    whole = (root / "model.safetensors").read_bytes()
+    header_size, = struct.unpack("<Q", whole[:8])
+    end = 8 + header_size + rangefetch.SAFETENSORS_PROBE_BYTES
+    assert end < len(whole), "fixture is too small to prove anything"
+    assert dest.read_bytes()[:end] == whole[:end]
+    assert plan.bytes_read < plan.file_size, "nothing was saved"
+
+
+def test_quote_path_encodes_the_name_but_not_the_separators():
+    assert quote_path("icd_eval/o_data/A榜 (1).zip") == (
+        "icd_eval/o_data/A%E6%A6%9C%20%281%29.zip")
+
+
+def test_a_name_with_a_space_and_non_ascii_survives_the_round_trip(served, tmp_path):
+    """Handed the name raw, urllib refuses before a byte leaves the machine and
+    the file is recorded as a fetch error rather than as a verdict. Encoded, it
+    reads the same as any other checkpoint.
+
+    Both trigger characters are in one name on purpose. The space is what
+    actually fired on the Hub census, but a space encodes to `%20` under any
+    scheme, so a fix that only handled ASCII would pass a space-only test and
+    still drop every CJK and Cyrillic filename.
+    """
+    root, base = served
+    name = "A榜 (1).pt"
+    _torch_zip(root / name, pickle.dumps({"weight": [1.0, 2.0]}, protocol=2))
+
+    with pytest.raises(rangefetch.RangeFetchError, match="control characters"):
+        materialize(f"{base}/{name}", tmp_path / "raw.pt")
+
+    dest = tmp_path / name
+    plan = materialize(f"{base}/{quote_path(name)}", dest)
+    assert plan.strategy == "torch-zip"
+    assert _scan(dest) == _scan(root / name)
+
+
+def test_a_zero_length_file_is_scanned_rather_than_failed(served, tmp_path):
+    """An empty file is not a fetch failure. Nothing went wrong: every byte it
+    has was read, and the scanner reads them and finds nothing. Counting it as
+    an error moves a real file out of the denominator of the very rate the
+    census exists to measure."""
+    root, base = served
+    (root / "empty.pkl").write_bytes(b"")
+    dest = tmp_path / "empty.pkl"
+    plan = materialize(f"{base}/empty.pkl", dest)
+    assert plan.sampled is True
+    assert plan.file_size == 0 and plan.bytes_read == 0
+    assert dest.stat().st_size == 0
+    assert _scan(dest) == []
+
+
 def test_a_small_file_is_just_downloaded(served, tmp_path):
     """Three round trips cost more than a file this size does."""
     root, base = served
@@ -357,12 +502,12 @@ class _Reduce:
                 (self.argument,))
 
 
-def _safetensors_bytes() -> bytes:
+def _safetensors_bytes(tensor_data: bytes = bytes(1_000_000)) -> bytes:
     header = json.dumps({
         "weight": {"dtype": "F32", "shape": [4], "data_offsets": [0, 16]},
         "__metadata__": {"format": "pt"},
     }).encode()
-    return struct.pack("<Q", len(header)) + header + bytes(1_000_000)
+    return struct.pack("<Q", len(header)) + header + tensor_data
 
 
 def test_module_constants_track_the_scanner():
