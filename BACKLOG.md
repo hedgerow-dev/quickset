@@ -14,7 +14,7 @@ and both produced a plausible number rather than a failure.
   was 91% and is 85%; the false-positive denominator was 198 and is 184.
   Regression test added to `test_adapters.py`, which needs no fetched corpus:
   a zip named `.keras` reproduces it.
-* **hayward (formerly open-rowan), and this one is the conflict of interest
+* **hayward, and this one is the conflict of interest
   showing up in code.** The adapter had no way to observe non-coverage at all.
   It treated any written report as a verdict, so a file the scanner declined
   to read counted as covered, and since the coverage rules carry a severity,
@@ -60,7 +60,7 @@ Also landed:
 * **`joblib-payload-after-raw-array` is no longer a known miss:** modelaudit
   flags it at its critical tier. Kept in the corpus; the other three miss it.
 
-## Done (2026-08-06): open-rowan is now hayward
+## Done (2026-08-06): scanner naming and packaging
 
 Hayward 1.0.0, MIT, on PyPI. Three consequences beyond the rename:
 
@@ -90,7 +90,7 @@ outright to a competitor, and it is the most useful row in the table. Keep it.
   branch heads, pre-fix coverage accounting, and the old tool name.
 * **Re-run `scripts/hub_sweep.py` and `scripts/malhug_scan.py`.** Both were
   invoking an executable that no longer exists and are updated but unrun. The
-  docs in `docs/` still carry numbers from the open-rowan builds.
+  docs in `docs/` still carry numbers from earlier builds.
 * **`model-cache/` holds 92 directories, 0.78 GB, from a previous manifest.**
   Not scored (`cached_models()` filters by manifest) and not deleted here,
   since re-fetching costs bandwidth. Left for a decision.
@@ -219,7 +219,7 @@ Note Python 3.13+ cannot run this benchmark: `modelscan` caps at `<3.13`.
 * **Done: both severity thresholds are now scored** (2026-08-04). Every
   adapter reports the strict tier (what the tool's author calls actionable)
   and the unknown tier (picklescan's suspicious, modelaudit's warning,
-  fickling's SUSPICIOUS, open-rowan's INFO), printed as a separate
+  fickling's SUSPICIOUS, hayward's INFO), printed as a separate
   "+unknown" row. This immediately corrected a published number: modelaudit's
   benign FP rate is 13/219 at critical, not 94 (its warning tier). No
   cross-tool severity scale was invented; the tiers are each tool's own.

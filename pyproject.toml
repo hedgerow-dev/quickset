@@ -6,13 +6,34 @@ build-backend = "setuptools.build_meta"
 name = "quickset"
 version = "0.1.0"
 description = "A neutral benchmark for ML model-file scanners: detection and false positives, scored separately."
+readme = "README.md"
 # Capped at <3.13 deliberately: modelscan requires <3.13, so a newer
 # interpreter resolves without it and quietly turns a five-way comparison into
 # a four-way one. A hard cap fails at install time instead.
 requires-python = ">=3.10,<3.13"
 license = "MIT"
 license-files = ["LICENSE"]
+authors = [
+    { name = "Hedgerow", email = "hello@hedgerow.dev" },
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Security",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
 dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/hedgerow-dev/quickset"
+Repository = "https://github.com/hedgerow-dev/quickset"
+Issues = "https://github.com/hedgerow-dev/quickset/issues"
 
 [project.optional-dependencies]
 # Scanners are invoked as subprocesses, never imported. Installing them is
