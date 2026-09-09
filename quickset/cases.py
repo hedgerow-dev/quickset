@@ -352,7 +352,7 @@ MALICIOUS: tuple[Case, ...] = (
                   "every opcode that follows.",
         origin="quickset",
         reference="Found by auditing a scanner's opcode coverage against "
-                  "pickletools' 68-opcode table; reported against open-rowan, "
+                  "pickletools' 68-opcode table; reported against Hayward, "
                   "which lost the resolved call before 2026-08. The same "
                   "three-byte shape applies to EXT2/EXT4, PERSID/BINPERSID "
                   "and protocol-5 NEXT_BUFFER.",
@@ -415,7 +415,7 @@ MALICIOUS: tuple[Case, ...] = (
         origin="published-technique",
         reference="Marco Slaviero, 'Sour Pickles', BlackHat USA 2011 -- the "
                   "memo-register chaining of getattr/apply/globals. Reported "
-                  "against open-rowan as DEF-45.",
+                  "against Hayward as DEF-45.",
         notes="Protocol 0, hand-assembled. The single-argument variant "
               "attrgetter('eval') is a much easier case and most scanners "
               "catch it; this one specifically scores whether partial "
@@ -443,7 +443,7 @@ MALICIOUS: tuple[Case, ...] = (
                   "declares the file clean.",
         origin="quickset",
         reference="Found while building this corpus; reported against "
-                  "open-rowan, which missed it before 2026-08.",
+                  "Hayward, which missed it before 2026-08.",
         notes="Not a deny-list bypass -- the payload is the most obvious "
               "gadget there is. It is a *parser coverage* bypass, which is a "
               "distinct failure mode worth scoring separately.",
@@ -459,7 +459,7 @@ MALICIOUS: tuple[Case, ...] = (
         technique="The same direct os.system payload, named pytorch_model.bin "
                   "-- the most common pickle-bearing filename on HuggingFace.",
         origin="quickset",
-        reference="Found while building this corpus; open-rowan skipped .bin "
+        reference="Found while building this corpus; Hayward skipped .bin "
                   "on extension before 2026-08.",
         notes="Scores extension dispatch, not opcode analysis. A scanner that "
               "sniffs content passes trivially; one that trusts the extension "

@@ -21,8 +21,9 @@ from __future__ import annotations
 import json
 import os
 import shutil
-import tempfile
 import subprocess
+import sys
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -59,8 +60,21 @@ class Adapter:
     license: str
     executable: str
 
+    @property
+    def executable_path(self) -> str:
+        cmd = shutil.which(self.executable)
+        if cmd:
+            return cmd
+        local = Path(sys.executable).parent / self.executable
+        if local.is_file() and os.access(local, os.X_OK):
+            return str(local)
+        return self.executable
+
     def available(self) -> bool:
-        return shutil.which(self.executable) is not None
+        if shutil.which(self.executable) is not None:
+            return True
+        local = Path(sys.executable).parent / self.executable
+        return local.is_file() and os.access(local, os.X_OK)
 
     def version(self) -> str:
         """The scanner's own version string.
@@ -112,9 +126,12 @@ class Adapter:
         child_env = None
         if env:
             child_env = {**os.environ, **env}
+        cmd_args = list(args)
+        if cmd_args and cmd_args[0] == self.executable:
+            cmd_args[0] = self.executable_path
         try:
             return subprocess.run(
-                args,
+                cmd_args,
                 capture_output=True,
                 text=True,
                 timeout=TIMEOUT_SECONDS,
@@ -123,7 +140,7 @@ class Adapter:
             )
         except subprocess.TimeoutExpired:
             return subprocess.CompletedProcess(
-                args, TIMED_OUT_RETURNCODE, stdout="", stderr="quickset: timed out"
+                cmd_args, TIMED_OUT_RETURNCODE, stdout="", stderr="quickset: timed out"
             )
 
 

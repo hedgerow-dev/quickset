@@ -1,7 +1,7 @@
 """Adapter tests: does each adapter correctly read its scanner's output?
 
 This is the highest-value test file in the project, and the reason is worth
-stating plainly. During development the open-rowan adapter looked for a JSON
+stating plainly. During development the Hayward adapter looked for a JSON
 field named `file_path`; the actual field is `file`. Every lookup returned
 nothing, every case scored as not-flagged, and the harness printed a clean,
 confident, entirely wrong `0/9 (0%)` for a scanner that detects 9 of 9. Nothing
