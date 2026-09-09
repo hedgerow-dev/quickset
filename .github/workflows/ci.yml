@@ -51,7 +51,7 @@ jobs:
       # Runs the benchmark itself so a change that breaks the harness fails
       # here rather than the next time someone quotes a number from it.
       - name: Benchmark smoke run
-        run: python -m quickset.run --json results.json
+        run: python -m quickset.run --json results.json --jobs 4
 
       - uses: actions/upload-artifact@v4
         if: always()

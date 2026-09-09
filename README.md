@@ -2,37 +2,44 @@
 
 **A reproducible benchmark for Machine Learning model-file security scanners.**
 
+![License MIT](https://img.shields.io/badge/license-MIT-013D5A?style=flat-square&labelColor=013D5A)
+![Python 3.12](https://img.shields.io/badge/python-3.12-013D5A?style=flat-square&labelColor=013D5A)
+![Test cases 251](https://img.shields.io/badge/cases-251-013D5A?style=flat-square&labelColor=013D5A)
+![Scanners 5](https://img.shields.io/badge/scanners-5-708C69?style=flat-square&labelColor=013D5A)
+![Zero malware on disk](https://img.shields.io/badge/malware_on_disk-none-F4A25B?style=flat-square&labelColor=013D5A)
+
 Quickset evaluates **picklescan**, **ModelScan**, **modelaudit**, **fickling**, and **Hayward** on detection efficacy, false-positive rates, and format coverage.
 
 ---
 
 ## Why
 
-Machine learning models are executable programs in disguise. Formats like PyTorch checkpoints (`.pt`, `.bin`), pickled state dictionaries, Keras models, and ONNX files can execute arbitrary system commands when loaded.
+Machine learning models are executable software in disguise. Serialization formats like PyTorch checkpoints (`.pt`, `.bin`), pickled objects, Keras models, and ONNX graphs can execute arbitrary system code when loaded.
 
-Multiple scanners have emerged to detect malicious model files before deployment. But until now:
-- **Private test claims**: Each tool claimed high detection against its own unreleased test set.
-- **Hidden false positives**: A scanner that flags everything achieves "100% detection", but breaks CI/CD pipelines with false alarms on legitimate models.
-- **Silent skips**: Some scanners report "0% false positives" simply because they silently skip modern model formats without parsing them.
-- **Weapons caches**: Previous academic benchmarks often distributed live malware on disk, risking accidental execution.
+Multiple scanners have emerged to detect malicious checkpoints before deployment. But until now:
 
-`quickset` provides an **independent, transparent, reproducible benchmark** to help developers and security teams evaluate and select the right scanner for their pipelines.
+- **Private test sets**: Tools claimed high detection against unreleased test files.
+- **Hidden false positives**: A scanner that flags everything achieves "100% detection", but breaks production CI pipelines on legitimate models.
+- **Silent non-coverage**: Some scanners show "0% false positives" simply because they silently ignore modern container formats without parsing them.
+- **Weapons caches**: Prior benchmarks often distributed live malware on disk, risking accidental execution.
+
+`quickset` provides an **independent, transparent, and reproducible benchmark** to measure how scanners actually perform against real-world models and realistic attack vectors.
 
 ---
 
 ## What
 
-`quickset` evaluates scanners against two distinct, realistic datasets:
+Quickset evaluates scanners across two distinct, complementary datasets:
 
-1. **Inert Malicious Payloads (26 generated test cases)**: Real-world exploit techniques (arbitrary command execution, stack desynchronization, resource amplification bombs, multi-stream legacy PyTorch bypasses). Payloads are synthesized dynamically at runtime with inert echo markers and non-routable `.invalid` domains (RFC 2606)—**no live malware is ever stored on disk**.
-2. **Real Benign Models (213 hash-pinned models)**: Real, clean models downloaded from the Hugging Face Hub across 14 model formats (PyTorch, SafeTensors, GGUF, ONNX, joblib, Keras, skops, etc.).
+1. **Inert Malicious Payloads (26 generated cases)**: Real exploit techniques—arbitrary command execution, stack desynchronization, resource amplification bombs, and multi-stream PyTorch bypasses. Payloads are generated dynamically at runtime with harmless echo markers and non-routable `.invalid` domains ([RFC 2606](https://datatracker.ietf.org/doc/html/rfc2606)). **No live malware is ever stored on disk.**
+2. **Real Benign Models (213 hash-pinned models)**: Clean, public models downloaded from the Hugging Face Hub across 14 container formats (PyTorch, SafeTensors, GGUF, ONNX, joblib, Keras, skops, etc.).
 
-### Benchmark Principles
+### Benchmark principles
 
-- **Detection & False Positives Paired**: High detection is meaningless if a scanner produces false alarms on standard models. Both metrics are measured side-by-side.
-- **Parser Coverage vs. Gadget Recognition**: Measures whether a tool actually parses the container format or silently ignores it.
-- **Safe by Construction**: Payloads are safe for CI environments, enterprise runners, and developer laptops without triggering antivirus alarms.
-- **Shipped Defaults**: All tools run through their official command-line interfaces at shipped defaults—measuring what users actually experience.
+- **Detection and false positives paired**: High detection is meaningless if a scanner halts valid builds. Both metrics are measured side-by-side.
+- **Parser coverage measured separately**: Distinguishes whether a scanner recognized a gadget from whether it inspected the file at all.
+- **Safe by construction**: Payloads are safe for local developer machines, enterprise runners, and CI environments without triggering endpoint alarms.
+- **Shipped defaults**: Every tool runs through its official command-line interface at default settings—measuring what operators actually experience.
 
 ---
 
@@ -40,19 +47,19 @@ Multiple scanners have emerged to detect malicious model files before deployment
 
 Benchmark results measured across 251 total test cases (26 malicious + 225 benign models, including 213 real Hugging Face models):
 
-| Scanner | Backed By | Actionable Detection | Overall Corpus Detection | False Positives | Format Coverage | Best For |
+| Scanner | Backed By | Actionable Detection | Overall Detection | False Positives | Format Coverage | Primary Strength |
 |---|---|---|---|---|---|---|
-| **[Hayward](https://github.com/hedgerow-dev/hayward)** | Hedgerow | **100%** (26/26) | **100%** (26/26) | **0%** (0/225) | **100%** (251/251) | CI/CD pipelines, comprehensive multi-format scanning |
+| **[Hayward](https://github.com/hedgerow-dev/hayward)** | Hedgerow | **100%** (26/26) | **100%** (26/26) | **0%** (0/225) | **100%** (251/251) | Deterministic CI/CD gating, zero false positives, multi-format coverage |
 | **[modelaudit](https://github.com/mindsdb/modelaudit)** | Promptfoo | **69%** (18/26) | **69%** (18/26) | **6%** (14/225) | **100%** (251/251) | Fast multi-format triage & auditing |
-| **[fickling](https://github.com/trailofbits/fickling)** | Trail of Bits | **94%** (16/17) | **62%** (16/26) | **96%** (88/92) | **43%** (109/251) | In-depth static pickle bytecode analysis & decompilation |
+| **[fickling](https://github.com/trailofbits/fickling)** | Trail of Bits | **94%** (16/17) | **62%** (16/26) | **96%** (88/92) | **43%** (109/251) | Static pickle bytecode analysis & decompilation |
 | **[picklescan](https://github.com/mmaitre314/picklescan)** | Hugging Face ecosystem | **50%** (12/24) | **46%** (12/26) | **1%** (1/192) | **86%** (216/251) | Lightweight, fast pickle scanning |
 | **[modelscan](https://github.com/protectai/modelscan)** | Protect AI | **38%** (5/13) | **19%** (5/26) | **0%** (0/80) | **37%** (93/251) | Conservative operator blocklist scanning |
 
-> **How to read this table:**
-> - **Actionable Detection**: Catch rate on malicious files the scanner *successfully opened and parsed*.
-> - **Overall Corpus Detection**: Catch rate across the *entire malicious corpus* (skipped formats count as misses).
-> - **False Positives**: Clean benign models incorrectly flagged as malicious.
-> - **Format Coverage**: Percentage of model formats and files the scanner returned a verdict on (versus skipping or failing to open).
+> **Interpreting the metrics:**
+> - **Actionable Detection**: Detection rate on malicious files the scanner *successfully opened and parsed*.
+> - **Overall Detection**: Detection rate across the *entire malicious corpus* (skipped formats count as misses).
+> - **False Positives**: Clean benign models incorrectly flagged as dangerous.
+> - **Format Coverage**: Percentage of test files and formats the scanner returned a verdict on (versus failing or skipping).
 
 ---
 
@@ -73,13 +80,13 @@ pip install picklescan modelscan fickling modelaudit hayward
 
 *(Python 3.12 recommended. Any scanner not installed is automatically skipped without failing the run.)*
 
-### 2. Run the Benchmark
+### 2. Run the benchmark
 
 ```bash
 python -m quickset.run
 ```
 
-Quickset will generate the inert test cases, evaluate installed scanners, and output the matrix:
+Quickset generates the inert test cases, runs all installed scanners, and prints the verified matrix:
 
 ```
 scanner                of files read    of corpus        false positives    coverage
@@ -91,19 +98,19 @@ fickling               16/17 (94%)      16/26 (62%)      88/92 (96%)        109/
 hayward                26/26 (100%)     26/26 (100%)     0/225 (0%)         251/251 (100%)
 ```
 
-### 3. Useful Commands
+### 3. Options
 
 ```bash
-# Save results to a structured JSON file
+# Save complete results to a structured JSON file
 python -m quickset.run --json results.json
 
-# Speed up execution across multiple CPU cores
+# Run with parallel workers
 python -m quickset.run --jobs 4
 
-# Show raw unnormalized verdicts per case
+# View unnormalized per-case verdict strings
 python -m quickset.run --verbose
 
-# Pre-fetch or verify the pinned benign model cache
+# Verify or refresh the local benign model cache
 python -m quickset.realmodels
 ```
 
@@ -111,12 +118,12 @@ python -m quickset.realmodels
 
 ## Adding Scanners & Test Cases
 
-Quickset is designed to be easily extended by the community:
+Quickset is designed for straightforward community contributions:
 
-- **Add a Scanner**: Subclass `Adapter` in `quickset/adapters.py`. Adapters run scanners as subprocesses, avoiding Python dependency conflicts.
-- **Add a Test Case**: Add a `Case` to `MALICIOUS` or `BENIGN` in `quickset/cases.py`. (Payloads must remain inert by using `.invalid` domains or harmless echo markers).
+- **Add a Scanner**: Subclass `Adapter` in `quickset/adapters.py`. Adapters run scanners as subprocesses, eliminating Python dependency conflicts.
+- **Add a Test Case**: Declare a `Case` in `quickset/cases.py`. (Payloads must remain inert with `.invalid` domains or harmless echo markers).
 
-Verify changes by running the test suite:
+Verify changes with the test suite:
 
 ```bash
 pytest tests/ -v
@@ -124,14 +131,14 @@ pytest tests/ -v
 
 ---
 
-## Prior Art & Deep Dives
+## Documentation & Prior Art
 
 - [Rangefetch Deep Dive](docs/rangefetch.md): How HTTP range requests read model headers and container tables without downloading gigabytes of tensor weights.
-- **Prior Art**: We acknowledge work on ML security benchmarks including [PickleBench](https://arxiv.org/html/2607.17503v1) (ShadowPickle), [PickleBall](https://arxiv.org/pdf/2508.15987), [SafePickle](https://arxiv.org/html/2602.19818v1), and `picklescan`'s test suite. Quickset builds upon this landscape by prioritizing zero-malware generation and paired false-positive evaluation.
+- **Prior Art**: We acknowledge foundational benchmarks and datasets in ML model security, including [PickleBench](https://arxiv.org/html/2607.17503v1) (ShadowPickle), [PickleBall](https://arxiv.org/pdf/2508.15987), [SafePickle](https://arxiv.org/html/2602.19818v1), and `picklescan`'s test suite. Quickset builds upon this work by prioritizing runtime payload generation and paired false-positive evaluation.
 
 ---
 
-## License & Conflict Disclosure
+## Licence & Disclosure
 
-- **License**: MIT.
-- **Conflict Disclosure**: `quickset` was built by Hedgerow, the creators of [Hayward](https://github.com/hedgerow-dev/hayward). All scanners are invoked strictly through official CLI subprocesses with identical flags and default settings. No scanner has internal or privileged access. The harness and cases are fully open source for independent verification.
+- **Licence**: MIT.
+- **Conflict of Interest Disclosure**: `quickset` was built by Hedgerow, the creators of [Hayward](https://github.com/hedgerow-dev/hayward). All scanners are invoked through official CLI subprocesses with standard defaults and identical flags. No scanner has internal or privileged access. The harness and test specifications are open source for independent verification.
