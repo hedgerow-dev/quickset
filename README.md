@@ -42,7 +42,7 @@ Benchmark results measured across 251 total test cases (26 malicious + 225 benig
 
 | Scanner | Backed By | Actionable Detection | Overall Corpus Detection | False Positives | Format Coverage | Best For |
 |---|---|---|---|---|---|---|
-| **[Hayward](https://github.com/hedgerow-dev/open-rowan)** | Hedgerow | **100%** (26/26) | **100%** (26/26) | **0%** (0/225) | **100%** (251/251) | CI/CD pipelines, comprehensive multi-format scanning |
+| **[Hayward](https://github.com/hedgerow-dev/hayward)** | Hedgerow | **100%** (26/26) | **100%** (26/26) | **0%** (0/225) | **100%** (251/251) | CI/CD pipelines, comprehensive multi-format scanning |
 | **[modelaudit](https://github.com/mindsdb/modelaudit)** | Promptfoo | **69%** (18/26) | **69%** (18/26) | **6%** (14/225) | **100%** (251/251) | Fast multi-format triage & auditing |
 | **[fickling](https://github.com/trailofbits/fickling)** | Trail of Bits | **94%** (16/17) | **62%** (16/26) | **96%** (88/92) | **43%** (109/251) | In-depth static pickle bytecode analysis & decompilation |
 | **[picklescan](https://github.com/mmaitre314/picklescan)** | Hugging Face ecosystem | **50%** (12/24) | **46%** (12/26) | **1%** (1/192) | **86%** (216/251) | Lightweight, fast pickle scanning |
@@ -134,4 +134,4 @@ pytest tests/ -v
 ## License & Conflict Disclosure
 
 - **License**: MIT.
-- **Conflict Disclosure**: `quickset` was built by Hedgerow, the creators of [Hayward](https://github.com/hedgerow-dev/open-rowan). All scanners are invoked strictly through official CLI subprocesses with identical flags and default settings. No scanner has internal or privileged access. The harness and cases are fully open source for independent verification.
+- **Conflict Disclosure**: `quickset` was built by Hedgerow, the creators of [Hayward](https://github.com/hedgerow-dev/hayward). All scanners are invoked strictly through official CLI subprocesses with identical flags and default settings. No scanner has internal or privileged access. The harness and cases are fully open source for independent verification.
