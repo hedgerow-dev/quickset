@@ -20,11 +20,14 @@ from __future__ import annotations
 
 import io
 import json
+import os
 import pickle
 import random
 import re
+import shutil
 import struct
 import subprocess
+import sys
 import threading
 import urllib.parse
 import zipfile
@@ -242,7 +245,14 @@ def _torch_zip(path: Path, payload: bytes, filler_members: int = 6) -> None:
 
 
 def _scan(path: Path) -> list:
-    proc = subprocess.run(["hayward", "scan", str(path), "-f", "json"],
+    hayward_cmd = shutil.which("hayward")
+    if not hayward_cmd:
+        candidate = Path(sys.executable).parent / "hayward"
+        if candidate.is_file() and os.access(candidate, os.X_OK):
+            hayward_cmd = str(candidate)
+    if not hayward_cmd:
+        pytest.skip("hayward CLI not available on PATH or in virtual environment")
+    proc = subprocess.run([hayward_cmd, "scan", str(path), "-f", "json"],
                           capture_output=True, text=True, check=False)
     report = json.loads(proc.stdout)
     return sorted([f["rule_id"], str(f["severity"]), f["message"]]

@@ -17,7 +17,7 @@ dependencies = []
 [project.optional-dependencies]
 # Scanners are invoked as subprocesses, never imported. Installing them is
 # optional and each is skipped when absent.
-scanners = ["picklescan", "modelscan", "fickling", "modelaudit"]
+scanners = ["picklescan", "modelscan", "fickling", "modelaudit", "hayward"]
 dev = ["pytest"]
 
 [project.scripts]
