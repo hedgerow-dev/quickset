@@ -61,6 +61,24 @@ Benchmark results measured across 251 total test cases (26 malicious + 225 benig
 > - **False Positives**: Clean benign models incorrectly flagged as dangerous.
 > - **Format Coverage**: Percentage of test files and formats the scanner returned a verdict on (versus failing or skipping).
 
+### Understanding Scanner Design Trade-offs
+
+The divergence in detection and false-positive rates reflects fundamentally different design goals and operational environments rather than defective implementations:
+
+- **fickling (Trail of Bits)**: Built primarily as an interactive forensic analysis, decompilation, and reverse-engineering tool for human security researchers. Its default heuristic assumes the file is an unknown, untrusted artifact under sandbox investigation: any non-standard-library import (`numpy`, `torch`, `sklearn`), any constructor instantiation (`__new__`), and any unreferenced variable assignment is flagged as `LIKELY_UNSAFE`. In a manual malware triage workflow, aggressive sensitivity is desirable. However, when deployed as an automated CI/CD gate on real-world ML repositories where legitimate models heavily utilize NumPy arrays and PyTorch tensors, this same sensitivity flags 96% of benign models.
+- **modelscan (Protect AI)**: Designed for automated CI/CD pipelines with an explicit requirement to avoid breaking developer workflows. It relies on a conservative allowlist and blocklist of known high-risk execution calls (`os.system`, `subprocess.Popen`, `eval`, `exec`). This achieves a 0% false-positive rate on clean models, but leaves the scanner blind to multi-stage gadget chains, indirect imports, and opcode desynchronization attacks (yielding 19% overall detection). Additionally, its parser coverage is focused on classic pickle files and skips non-pickle containers.
+- **picklescan (Hugging Face)**: Built as a lightweight, low-overhead filter for the Hugging Face model registry. It inspects global imports against a curated list of dangerous modules. This delivers rapid evaluation with minimal false positives (1%), but does not perform full abstract machine emulation, leaving it vulnerable to opcode-level evasion techniques.
+- **modelaudit (Promptfoo)**: Designed as a multi-format audit scanner covering 14 container formats. It balances speed with broader format awareness, showing solid detection (69%) with a low false-positive rate (6%) on complex legitimate pipelines.
+- **Hayward (Hedgerow)**: Engineered specifically for automated CI/CD gating and model registries without human triagers. Rather than relying on simple string blocklists (which miss evasions) or flagging all third-party imports (which breaks CI), Hayward simulates the pickle abstract machine, tracks stack states and memo registers, and evaluates callable arguments semantically. This allows it to distinguish legitimate tensor allocations from execution sinks with 0% false positives and 100% detection across all supported container formats.
+
+#### Why previous benchmarks reported different numbers
+
+Prior academic benchmarks (such as PickleCloak and ShadowPickle) evaluated tools exclusively against synthetic malicious pickles with **zero benign models** and **zero non-pickle formats** (no SafeTensors, ONNX, or GGUF). Under those conditions:
+1. A scanner that flags every non-standard import appears to achieve "100% detection", because there are no clean models present to reveal the corresponding false-positive rate.
+2. A tool that fails to parse modern container formats appears to perform well if the test set only contains raw `.pkl` files.
+
+Quickset evaluates detection efficacy and false-positive rates simultaneously across real-world weights and modern distribution formats, demonstrating the true operational trade-offs of each approach.
+
 ---
 
 ## How
