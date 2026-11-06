@@ -32,7 +32,7 @@ Multiple scanners have emerged to detect malicious checkpoints before deployment
 Quickset evaluates scanners across two distinct, complementary datasets:
 
 1. **Inert Malicious Payloads (26 generated cases)**: Real exploit techniques—arbitrary command execution, stack desynchronization, resource amplification bombs, and multi-stream PyTorch bypasses. Payloads are generated dynamically at runtime with harmless echo markers and non-routable `.invalid` domains ([RFC 2606](https://datatracker.ietf.org/doc/html/rfc2606)). **No live malware is ever stored on disk.**
-2. **Real Benign Models (213 hash-pinned models)**: Clean, public models downloaded from the Hugging Face Hub across 14 container formats (PyTorch, SafeTensors, GGUF, ONNX, joblib, Keras, skops, etc.).
+2. **Real Benign Models (210 hash-pinned models)**: Clean, public models downloaded from the Hugging Face Hub across 14 container formats (PyTorch, SafeTensors, GGUF, ONNX, joblib, Keras, skops, etc.).
 
 ### Benchmark principles
 
