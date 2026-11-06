@@ -1,0 +1,18 @@
+213 entries, 0 already cached and verified
+need ~1.68 GB, 62.4 GB free
+  [8/213] FAILED GoverningDocs--ccr-binary-logreg--ccr_binary_isotonic_calibrator.joblib: download failed: HTTP Error 401: Unauthorized
+  [9/213] FAILED GoverningDocs--ccr-binary-logreg--ccr_binary_logreg_tuned.joblib: download failed: HTTP Error 401: Unauthorized
+  [20/213] FAILED NullRabbit--nr-network-known-class-detector--model.joblib: HASH MISMATCH: expected ce2a22a705ad016d1fa53913e263715d4d4fd454039e83616eb31fb819c3fd65, got 3f0c3b545757829a1bc638afa19b3219ec33c0c4ad46ea7927b0b3366868ed44
+  [25/213] ok
+  [50/213] ok
+  [75/213] ok
+  [100/213] ok
+  [125/213] ok
+  [150/213] ok
+  [175/213] ok
+  [200/213] ok
+  [213/213] ok
+
+210/213 verified, 1.67 GB on disk
+3 failed. Re-run to retry only those.
+MODELS-EXIT 1
