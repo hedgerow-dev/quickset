@@ -1,0 +1,12 @@
+Hayward 1.16.1 re-scored on the external corpora at its default build gate
+(HIGH and above), 6 November 2026, quickset a51d9f8, on a second machine
+(Ubuntu 24.04, x86_64, Python 3.12.3), using rescore_hayward_high.py.
+LOW+ counts reproduce the 5 November run exactly.
+
+picklescan-tests: malicious 35, LOW+ 35, HIGH+ 35; benign 3, FP LOW+ 0, FP HIGH+ 0; no verdict 1
+picklecloak-exploits: malicious 57, LOW+ 51, HIGH+ 46; benign 0, FP LOW+ 0, FP HIGH+ 0; no verdict 0
+picklecloak-chains: malicious 97, LOW+ 91, HIGH+ 56; benign 0, FP LOW+ 0, FP HIGH+ 0; no verdict 0
+
+On the 26 generated malicious cases (from results-2026-11-05.json, top
+severity per case): 17 critical, 5 high, 3 medium, 1 low. HIGH+ = 22/26.
+On the 222 benign files Hayward raised nothing above INFO, so HIGH+ = 0/222.

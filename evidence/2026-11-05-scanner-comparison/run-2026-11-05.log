@@ -1,0 +1,1109 @@
+
+PER-CASE RESULTS  (o = flagged, . = not flagged)
+123 real models no scanner flagged are omitted; every flagged one is listed.
+
+case                                                                                                 truth   picklescan   modelscan    modelaudit   fickling     hayward    
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+direct-os-system                                                                                     MAL     o            o            o            o            o          
+cve-2025-71350-collect-env                                                                           MAL     o            MISS         o            o            o          
+cve-2025-1716-pip-main                                                                               MAL     o            MISS         o            o            o          
+cve-2025-46417-linecache-read                                                                        MAL     MISS         MISS         MISS         o            o          
+cve-2025-46417-ssl-exfil                                                                             MAL     o            MISS         o            o            o          
+attrgetter-chain                                                                                     MAL     o            o            o            o            o          
+getattr-chain                                                                                        MAL     o            o            o            o            o          
+cloudpickle-make-function                                                                            MAL     o            MISS         o            o            o          
+stack-desync-ext1-pop                                                                                MAL     o            MISS         o            o            o          
+dup-amplification-billion-laughs                                                                     MAL     o            o            o            MISS         o          
+getattr-through-opaque-argument                                                                      MAL     o            o            o            o            o          
+legacy-layout-second-pickle                                                                          MAL     o            MISS         o            o            o          
+bin-extension-dispatch                                                                               MAL     o            MISS         o            o            o          
+skops-denied-type-reference                                                                          MAL     MISS         MISS         MISS         MISS         o          
+skops-methodnode-inconsistent                                                                        MAL     MISS         MISS         o            MISS         o          
+safetensors-name-traversal                                                                           MAL     MISS         MISS         MISS         MISS         o          
+safetensors-name-nul                                                                                 MAL     MISS         MISS         MISS         o            o          
+safetensors-name-crlf                                                                                MAL     MISS         MISS         MISS         o            o          
+gguf-tensor-name-traversal                                                                           MAL     MISS         MISS         MISS         o            o          
+onnx-external-data-ssrf                                                                              MAL     MISS         MISS         MISS         MISS         o          
+onnx-external-data-traversal                                                                         MAL     MISS         MISS         MISS         MISS         o          
+nested-pickle-literal                                                                                MAL     MISS         MISS         o            MISS         o          
+joblib-lzma-payload                                                                                  MAL     MISS         MISS         o            o            o          
+joblib-bz2-payload                                                                                   MAL     MISS         MISS         o            MISS         o          
+joblib-xz-payload                                                                                    MAL     MISS         MISS         o            MISS         o          
+joblib-payload-after-raw-array                                                                       MAL     MISS         MISS         o            MISS         o          
+benign-state-dict                                                                                    ben     .            .            .            FP           .          
+benign-stdlib-types                                                                                  ben     FP           .            .            FP           .          
+benign-custom-class                                                                                  ben     .            .            .            FP           .          
+benign-paths-and-urls                                                                                ben     .            .            .            .            .          
+benign-slashed-tensor-names                                                                          ben     .            .            .            .            .          
+benign-adjacent-offsets                                                                              ben     .            .            .            .            .          
+benign-onnx-sibling-weights                                                                          ben     .            .            .            .            .          
+benign-jinja-chat-template                                                                           ben     .            .            .            FP           .          
+benign-code-trained-vocab                                                                            ben     .            .            .            FP           .          
+benign-compressed-joblib                                                                             ben     .            .            .            .            .          
+benign-weights-starting-like-pickle                                                                  ben     .            .            FP           .            .          
+benign-pickle-after-raw-bytes                                                                        ben     .            .            .            .            .          
+AWeirdDev--human-disease-prediction--sklearn_model.joblib                                            ben     .            .            FP           FP           .          
+AbhishekS2005--mlforge-test-model--linear_regression.joblib                                          ben     .            .            .            FP           .          
+AbhishekS2005--mlforge-test-model--sgd_classifier.pkl                                                ben     .            .            .            FP           .          
+Dilipk--flask-classification-model--classification_model.joblib                                      ben     .            .            FP           FP           .          
+Kratim-Budhimata--Regression-is-Attention--scaler_minmax_x.joblib                                    ben     .            .            .            FP           .          
+Kratim-Budhimata--Regression-is-Attention--scaler_minmax_y.joblib                                    ben     .            .            .            FP           .          
+Steenslid--ecg-ptbxl-classification--ecg_cnn_final.keras                                             ben     .            .            FP           .            .          
+TasnimMer--callcenter-tfidf--tfidf_svm_model.pkl                                                     ben     .            .            FP           FP           .          
+danupurnomo--dummy-titanic--final_pipeline.pkl                                                       ben     .            .            FP           FP           .          
+danupurnomo--dummy-titanic--sklearn_model.joblib                                                     ben     .            .            FP           FP           .          
+daxa-ai--pebblo-classifier--label_encoder.joblib                                                     ben     .            .            .            FP           .          
+echarlaix--tiny-random-PhiForCausalLM--model.safetensors                                             ben     .            .            .            FP           .          
+google--bert_uncased_L-12_H-128_A-2--flax_model.msgpack                                              ben     .            .            .            FP           .          
+google--bert_uncased_L-12_H-128_A-2--pytorch_model.bin                                               ben     .            .            .            FP           .          
+google--bert_uncased_L-2_H-128_A-2--flax_model.msgpack                                               ben     .            .            .            FP           .          
+google--bert_uncased_L-2_H-128_A-2--model.safetensors                                                ben     .            .            .            FP           .          
+google--bert_uncased_L-2_H-128_A-2--pytorch_model.bin                                                ben     .            .            .            FP           .          
+google--bert_uncased_L-4_H-128_A-2--flax_model.msgpack                                               ben     .            .            .            FP           .          
+google--bert_uncased_L-6_H-128_A-2--flax_model.msgpack                                               ben     .            .            .            FP           .          
+google--bert_uncased_L-6_H-128_A-2--pytorch_model.bin                                                ben     .            .            .            FP           .          
+google--bert_uncased_L-8_H-128_A-2--pytorch_model.bin                                                ben     .            .            .            FP           .          
+griko--age_reg_svr_ecapa_voxceleb2--scaler.joblib                                                    ben     .            .            .            FP           .          
+handy-computer--whisper-tiny-gguf--whisper-tiny-Q4_K_M.gguf                                          ben     .            .            .            FP           .          
+handy-computer--whisper-tiny-gguf--whisper-tiny-Q5_K_M.gguf                                          ben     .            .            .            FP           .          
+handy-computer--whisper-tiny-gguf--whisper-tiny-Q6_K.gguf                                            ben     .            .            .            FP           .          
+hf-internal-testing--tiny-random-bert--tf_model.h5                                                   ben     .            .            .            FP           .          
+hf-internal-testing--tiny-random-t5--tf_model.h5                                                     ben     .            .            .            FP           .          
+imshriya--mlforge-cicd-test-model--sgd_classifier.pkl                                                ben     .            .            .            FP           .          
+incrediblestand--fedlytics-typhoid--minmax_scaler.joblib                                             ben     .            .            FP           FP           .          
+julien-c--wine-quality--sklearn_model.joblib                                                         ben     .            .            .            FP           .          
+kjfk--galaxy-bar-detection-resnet50--regression_ensemble--ensemble_test_pred.npy                     ben     .            .            .            FP           .          
+kjfk--galaxy-bar-detection-resnet50--regression_resnet50--test_pred.npy                              ben     .            .            .            FP           .          
+llamafactory--tiny-random-Llama-3--model.safetensors                                                 ben     .            .            .            FP           .          
+lysandre--test-trainer--model.safetensors                                                            ben     .            .            .            FP           .          
+mmx86--hf_heart--sklearn_model.joblib                                                                ben     .            .            .            FP           .          
+mohammed781234712--amazon-books-sentiment--label_encoder.pkl                                         ben     .            .            .            FP           .          
+mohammed781234712--amazon-books-sentiment--model.pkl                                                 ben     .            .            FP           FP           .          
+mradermacher--jina-reranker-v1-tiny-en-GGUF--jina-reranker-v1-tiny-en.IQ4_XS.gguf                    ben     .            .            .            FP           .          
+mradermacher--jina-reranker-v1-tiny-en-GGUF--jina-reranker-v1-tiny-en.Q2_K.gguf                      ben     .            .            .            FP           .          
+mradermacher--jina-reranker-v1-tiny-en-GGUF--jina-reranker-v1-tiny-en.Q3_K_L.gguf                    ben     .            .            .            FP           .          
+mrm8488--bert-tiny-finetuned-sms-spam-detection--model.safetensors                                   ben     .            .            .            FP           .          
+mrm8488--bert-tiny-finetuned-yahoo_answers_topics--model.safetensors                                 ben     .            .            .            FP           .          
+optimum-intel-internal-testing--tiny-random-BlenderbotModel--tf_model.h5                             ben     .            .            .            FP           .          
+optimum-intel-internal-testing--tiny-random-distilbert--tf_model.h5                                  ben     .            .            .            FP           .          
+optimum-intel-internal-testing--tiny-random-gpt2--tf_model.h5                                        ben     .            .            .            FP           .          
+optimum-intel-internal-testing--tiny-random-roberta--tf_model.h5                                     ben     .            .            .            FP           .          
+optimum-intel-internal-testing--tiny-random-whisper--model.safetensors                               ben     .            .            .            FP           .          
+patrickvonplaten--debug_repo--flax_wav2vec2--logits.npy                                              ben     .            .            .            FP           .          
+patrickvonplaten--t5-tiny-random--flax_model.msgpack                                                 ben     .            .            .            FP           .          
+patrickvonplaten--t5-tiny-random--pytorch_model.bin                                                  ben     .            .            .            FP           .          
+patrickvonplaten--t5-tiny-random--tf_model.h5                                                        ben     .            .            .            FP           .          
+pfizer-project-team--binary-segA-vs-segBC--sklearn_model.joblib                                      ben     .            .            .            FP           .          
+prabinpanta0--Patient-Readmission-Prediction--model_K_nearest.pkl                                    ben     .            .            FP           FP           .          
+prabinpanta0--Patient-Readmission-Prediction--model_Logistic_Regression.pkl                          ben     .            .            FP           FP           .          
+prajjwal1--albert-base-v1-mnli--training_args.bin                                                    ben     .            .            .            FP           .          
+prajjwal1--albert-base-v2-mnli--model.safetensors                                                    ben     .            .            .            FP           .          
+prajjwal1--albert-base-v2-mnli--training_args.bin                                                    ben     .            .            .            FP           .          
+prajjwal1--bert-tiny-mnli--flax_model.msgpack                                                        ben     .            .            .            FP           .          
+rawqubit--ClassicML-Prompt-Injection-Detector--sklearn_model.joblib                                  ben     .            .            .            FP           .          
+salnakuruvi--567-npy-put-underflow--model.npy                                                        ben     .            .            .            FP           .          
+sentence-transformers--paraphrase-albert-small-v2--model.safetensors                                 ben     .            .            .            FP           .          
+sshleifer--bart-tiny-random--flax_model.msgpack                                                      ben     .            .            .            FP           .          
+sshleifer--bart-tiny-random--pytorch_model.bin                                                       ben     .            .            .            FP           .          
+sshleifer--bart-tiny-random--tf_model.h5                                                             ben     .            .            .            FP           .          
+sshleifer--tiny-ctrl--pytorch_model.bin                                                              ben     .            .            .            FP           .          
+sshleifer--tiny-dbmdz-bert-large-cased-finetuned-conll03-english--flax_model.msgpack                 ben     .            .            .            FP           .          
+sshleifer--tiny-dbmdz-bert-large-cased-finetuned-conll03-english--pytorch_model.bin                  ben     .            .            .            FP           .          
+sshleifer--tiny-dbmdz-bert-large-cased-finetuned-conll03-english--tf_model.h5                        ben     .            .            .            FP           .          
+sshleifer--tiny-distilbert-base-cased--tf_model.h5                                                   ben     .            .            .            FP           .          
+sshleifer--tiny-distilbert-base-cased-distilled-squad--pytorch_model.bin                             ben     .            .            .            FP           .          
+sshleifer--tiny-distilbert-base-cased-distilled-squad--tf_model.h5                                   ben     .            .            .            FP           .          
+sshleifer--tiny-distilbert-base-uncased-finetuned-sst-2-english--tf_model.h5                         ben     .            .            .            FP           .          
+sshleifer--tiny-distilroberta-base--flax_model.msgpack                                               ben     .            .            .            FP           .          
+sshleifer--tiny-distilroberta-base--pytorch_model.bin                                                ben     .            .            .            FP           .          
+sshleifer--tiny-distilroberta-base--tf_model.h5                                                      ben     .            .            .            FP           .          
+sshleifer--tiny-marian-en-de--pytorch_model.bin                                                      ben     .            .            .            FP           .          
+sshleifer--tiny-mbart--pytorch_model.bin                                                             ben     .            .            .            FP           .          
+sshleifer--tiny-mbart--tf_model.h5                                                                   ben     .            .            .            FP           .          
+sshleifer--tiny-xlnet-base-cased--pytorch_model.bin                                                  ben     .            .            .            FP           .          
+timm--resnet18.a1_in1k--model.safetensors                                                            ben     .            .            .            FP           .          
+unsloth--DeepSeek-V4-Flash-0731-GGUF--UD-IQ1_M--DeepSeek-V4-Flash-0731-UD-IQ1_M-00001-of-00003.gguf  ben     .            .            .            FP           .          
+unsloth--DeepSeek-V4-Flash-0731-GGUF--UD-IQ1_S--DeepSeek-V4-Flash-0731-UD-IQ1_S-00001-of-00003.gguf  ben     .            .            .            FP           .          
+unsloth--DeepSeek-V4-Flash-0731-GGUF--UD-IQ2_M--DeepSeek-V4-Flash-0731-UD-IQ2_M-00001-of-00003.gguf  ben     .            .            .            FP           .          
+valhalla--ddpm-ema-pokemon-64--checkpoint-1000--random_states_0.pkl                                  ben     .            .            FP           .            .          
+vvmnnnkv--wine-quality--model.pkl                                                                    ben     .            .            FP           FP           .          
+vvmnnnkv--wine-quality--model_w_features.pkl                                                         ben     .            .            FP           FP           .          
+waghelad--dgvj-work--risk_classifier.joblib                                                          ben     .            .            .            FP           .          
+
+SUMMARY
+
+scanner                of files read    of corpus        false positives    coverage         errors
+----------------------------------------------------------------------------------------------
+picklescan             12/24 (50%)      12/26 (46%)      1/192 (1%)         216/248 (87%)    32
+picklescan +unknown    13/24 (54%)      13/26 (50%)      38/192 (20%)      
+modelscan              5/13 (38%)       5/26 (19%)       0/80 (0%)          93/248 (38%)     155
+modelaudit             18/26 (69%)      18/26 (69%)      14/222 (6%)        248/248 (100%)   -
+modelaudit +unknown    22/26 (85%)      22/26 (85%)      90/222 (41%)      
+fickling               16/17 (94%)      16/26 (62%)      90/94 (96%)        111/248 (45%)    137
+hayward                26/26 (100%)     26/26 (100%)     0/222 (0%)         248/248 (100%)   -
+hayward +unknown       26/26 (100%)     26/26 (100%)     7/222 (3%)        
+
+Detection and false positives are reported separately and never
+combined into a single score. A scanner that flags every file has
+perfect detection, and one that flags nothing has a perfect false
+positive rate; only the pair means anything.
+
+Each scanner's main row is its strict threshold: only the tier its
+author calls actionable. The '+unknown' row adds that tool's unknown
+bucket (picklescan's suspicious, modelaudit's warning, fickling's
+SUSPICIOUS, hayward's INFO), the analogue of not-flagged for a
+human triager. Report both thresholds or neither: scoring one tool
+at its top tier while counting another's unknown tier is the
+specific unfairness this table exists to avoid. Run with --verbose
+to see each scanner's own verdict string per case.
+
+Detection is given twice. 'Of files read' asks whether a scanner
+finds the payload when it opens the file. 'Of corpus' asks what
+it catches from everything handed to it, counting the files it
+never read as misses. The second is what an operator gets, and
+the two diverge sharply for tools with low coverage: a scanner
+that reads a sixth of the corpus can score well on the first
+column while catching very little.
+
+Coverage is the share of files the scanner returned any verdict
+on. Errored files (parse failures, crashes, zero-file scans) are
+excluded from both numerators and denominators alike: a tool that
+never read the file has no verdict to its name.
+
+Cases marked KNOWN MISS are detected by nothing here, including
+the scanner this project is written alongside. They are carried on
+purpose: a corpus holding only cases its author passes is a corpus
+that flatters its author. A case losing that mark because someone
+fixed it is the most useful thing this benchmark can report.
+
+
+VERDICTS (each scanner's own words, unnormalized)
+
+  direct-os-system  [malicious]
+      flag  picklescan   /tmp/quickset-iwe6lqk5/direct-os-system/direct_os_system.pkl: dangerous import '
+      flag  modelscan    1 issue(s), worst CRITICAL
+      flag  modelaudit   1 issue(s), worst critical
+      flag  fickling     LIKELY_OVERTLY_MALICIOUS
+      flag  hayward      MFV-PICKLE-001 / critical
+
+  cve-2025-71350-collect-env  [malicious]
+      flag  picklescan   /tmp/quickset-iwe6lqk5/cve-2025-71350-collect-env/collect_env_run.pkl: dangerous
+        .   modelscan    0 issue(s)
+      flag  modelaudit   1 issue(s), worst critical
+      flag  fickling     LIKELY_UNSAFE
+      flag  hayward      MFV-PICKLE-001 / critical
+
+  cve-2025-1716-pip-main  [malicious]
+      flag  picklescan   /tmp/quickset-iwe6lqk5/cve-2025-1716-pip-main/pip_main.pkl: dangerous import 'pi
+        .   modelscan    0 issue(s)
+      flag  modelaudit   3 issue(s), worst critical
+      flag  fickling     LIKELY_OVERTLY_MALICIOUS
+      flag  hayward      MFV-PICKLE-001 / critical
+
+  cve-2025-46417-linecache-read  [malicious]
+        .   picklescan   
+        .   modelscan    0 issue(s)
+        .   modelaudit   1 issue(s), worst warning
+      flag  fickling     LIKELY_OVERTLY_MALICIOUS
+      flag  hayward      MFV-PICKLE-005 / low
+
+  cve-2025-46417-ssl-exfil  [malicious]
+      flag  picklescan   /tmp/quickset-iwe6lqk5/cve-2025-46417-ssl-exfil/ssl_exfil.pkl: dangerous import 
+        .   modelscan    0 issue(s)
+      flag  modelaudit   1 issue(s), worst critical
+      flag  fickling     LIKELY_OVERTLY_MALICIOUS
+      flag  hayward      MFV-PICKLE-001 / critical
+
+  attrgetter-chain  [malicious]
+      flag  picklescan   /tmp/quickset-iwe6lqk5/attrgetter-chain/operator_attrgetter.pkl: dangerous impor
+      flag  modelscan    1 issue(s), worst CRITICAL
+      flag  modelaudit   1 issue(s), worst critical
+      flag  fickling     LIKELY_OVERTLY_MALICIOUS
+      flag  hayward      MFV-PICKLE-005 / medium
+
+  getattr-chain  [malicious]
+      flag  picklescan   /tmp/quickset-iwe6lqk5/getattr-chain/builtins_getattr.pkl: dangerous import 'bui
+      flag  modelscan    2 issue(s), worst CRITICAL
+      flag  modelaudit   2 issue(s), worst critical
+      flag  fickling     LIKELY_OVERTLY_MALICIOUS
+      flag  hayward      MFV-PICKLE-001 / critical
+
+  cloudpickle-make-function  [malicious]
+      flag  picklescan   /tmp/quickset-iwe6lqk5/cloudpickle-make-function/cloudpickle_make_function.pkl: 
+        .   modelscan    0 issue(s)
+      flag  modelaudit   1 issue(s), worst critical
+      flag  fickling     LIKELY_OVERTLY_MALICIOUS
+      flag  hayward      MFV-PICKLE-001 / critical
+
+  stack-desync-ext1-pop  [malicious]
+      flag  picklescan   /tmp/quickset-iwe6lqk5/stack-desync-ext1-pop/stack_desync.pkl: dangerous import 
+        .   modelscan    0 issue(s)
+      flag  modelaudit   5 issue(s), worst critical
+      flag  fickling     LIKELY_OVERTLY_MALICIOUS
+      flag  hayward      MFV-PICKLE-001 / critical
+
+  dup-amplification-billion-laughs  [malicious]
+      flag  picklescan   /tmp/quickset-iwe6lqk5/dup-amplification-billion-laughs/dup_amplification.pkl: d
+      flag  modelscan    1 issue(s), worst CRITICAL
+      flag  modelaudit   1 issue(s), worst critical
+        .   fickling     ERROR: timed out
+      flag  hayward      MFV-PICKLE-001 / critical
+
+  getattr-through-opaque-argument  [malicious]
+      flag  picklescan   /tmp/quickset-iwe6lqk5/getattr-through-opaque-argument/getattr_globals_eval.pkl:
+      flag  modelscan    1 issue(s), worst CRITICAL
+      flag  modelaudit   2 issue(s), worst critical
+      flag  fickling     LIKELY_OVERTLY_MALICIOUS
+      flag  hayward      MFV-PICKLE-005 / medium
+
+  legacy-layout-second-pickle  [malicious]
+      flag  picklescan   /tmp/quickset-iwe6lqk5/legacy-layout-second-pickle/legacy_layout.pt: dangerous i
+        .   modelscan    0 issue(s)
+      flag  modelaudit   4 issue(s), worst critical
+      flag  fickling     LIKELY_OVERTLY_MALICIOUS
+      flag  hayward      MFV-PICKLE-001 / critical
+
+  bin-extension-dispatch  [malicious]
+      flag  picklescan   /tmp/quickset-iwe6lqk5/bin-extension-dispatch/pytorch_model.bin: dangerous impor
+        .   modelscan    ERROR: no files scanned
+      flag  modelaudit   1 issue(s), worst critical
+      flag  fickling     LIKELY_OVERTLY_MALICIOUS
+      flag  hayward      MFV-PICKLE-001 / critical
+
+  skops-denied-type-reference  [malicious]
+        .   picklescan   ERROR: scanned 0 files
+        .   modelscan    ERROR: no files scanned
+        .   modelaudit   0 issue(s)
+        .   fickling     ERROR: Fickling failed to parse this pickle file. Error: No pickle files detecte
+      flag  hayward      MFV-SKOPS-001 / critical
+
+  skops-methodnode-inconsistent  [malicious]
+        .   picklescan   ERROR: scanned 0 files
+        .   modelscan    ERROR: no files scanned
+      flag  modelaudit   1 issue(s), worst critical
+        .   fickling     ERROR: Fickling failed to parse this pickle file. Error: No pickle files detecte
+      flag  hayward      MFV-SKOPS-002 / critical
+
+  safetensors-name-traversal  [malicious]
+        .   picklescan   
+        .   modelscan    ERROR: no files scanned
+        .   modelaudit   1 issue(s), worst warning
+        .   fickling     ERROR: Fickling failed to parse this pickle file. Error: No pickle files detecte
+      flag  hayward      MFV-ST-006 / high
+
+  safetensors-name-nul  [malicious]
+        .   picklescan   
+        .   modelscan    ERROR: no files scanned
+        .   modelaudit   3 issue(s), worst warning
+      flag  fickling     LIKELY_UNSAFE
+      flag  hayward      MFV-ST-004 / high
+
+  safetensors-name-crlf  [malicious]
+        .   picklescan   
+        .   modelscan    ERROR: no files scanned
+        .   modelaudit   3 issue(s), worst warning
+      flag  fickling     LIKELY_UNSAFE
+      flag  hayward      MFV-ST-004 / high
+
+  gguf-tensor-name-traversal  [malicious]
+        .   picklescan   
+        .   modelscan    ERROR: no files scanned
+        .   modelaudit   0 issue(s)
+      flag  fickling     LIKELY_UNSAFE
+      flag  hayward      MFV-GGUF-005 / high
+
+  onnx-external-data-ssrf  [malicious]
+        .   picklescan   
+        .   modelscan    ERROR: no files scanned
+        .   modelaudit   1 issue(s), worst info
+        .   fickling     ERROR: Fickling failed to parse this pickle file. Error: No pickle files detecte
+      flag  hayward      MFV-ONNX-004 / high
+
+  onnx-external-data-traversal  [malicious]
+        .   picklescan   
+        .   modelscan    ERROR: no files scanned
+        .   modelaudit   1 issue(s), worst info
+        .   fickling     ERROR: Fickling failed to parse this pickle file. Error: No pickle files detecte
+      flag  hayward      MFV-ONNX-002 / medium
+
+  nested-pickle-literal  [malicious]
+        .   picklescan   
+        .   modelscan    0 issue(s)
+      flag  modelaudit   2 issue(s), worst critical
+        .   fickling     LIKELY_SAFE
+      flag  hayward      MFV-PICKLE-008 / critical
+
+  joblib-lzma-payload  [malicious]
+        .   picklescan   
+        .   modelscan    ERROR: Parsing error: at position 1, opcode b'\x00' unknown
+      flag  modelaudit   1 issue(s), worst critical
+      flag  fickling     LIKELY_UNSAFE
+      flag  hayward      MFV-PICKLE-001 / critical
+
+  joblib-bz2-payload  [malicious]
+        .   picklescan   
+        .   modelscan    ERROR: Parsing error: expected 825845850 bytes in a bytes4, but only 87 remain
+      flag  modelaudit   1 issue(s), worst critical
+        .   fickling     ERROR: Fickling failed to parse this pickle file. Error: No pickle files detecte
+      flag  hayward      MFV-PICKLE-001 / critical
+
+  joblib-xz-payload  [malicious]
+        .   picklescan   
+        .   modelscan    ERROR: Parsing error: at position 0, opcode b'\xfd' unknown
+      flag  modelaudit   1 issue(s), worst critical
+        .   fickling     ERROR: Fickling failed to parse this pickle file. Error: No pickle files detecte
+      flag  hayward      MFV-PICKLE-001 / critical
+
+  joblib-payload-after-raw-array  [malicious]
+        .   picklescan   
+        .   modelscan    ERROR: Parsing error: at position 0, opcode b'x' unknown
+      flag  modelaudit   3 issue(s), worst critical
+        .   fickling     ERROR: Fickling failed to parse this pickle file. Error: No pickle files detecte
+      flag  hayward      MFV-PICKLE-001 / critical
+
+  benign-state-dict  [benign]
+        .   picklescan   
+        .   modelscan    0 issue(s)
+        .   modelaudit   0 issue(s)
+      flag  fickling     LIKELY_UNSAFE
+        .   hayward      
+
+  benign-stdlib-types  [benign]
+      flag  picklescan   /tmp/quickset-iwe6lqk5/benign-stdlib-types/benign_stdlib_types.pkl: dangerous im
+        .   modelscan    0 issue(s)
+        .   modelaudit   0 issue(s)
+      flag  fickling     LIKELY_OVERTLY_MALICIOUS
+        .   hayward      
+
+  benign-custom-class  [benign]
+        .   picklescan   
+        .   modelscan    0 issue(s)
+        .   modelaudit   1 issue(s), worst warning
+      flag  fickling     LIKELY_UNSAFE
+        .   hayward      
+
+  benign-paths-and-urls  [benign]
+        .   picklescan   
+        .   modelscan    0 issue(s)
+        .   modelaudit   0 issue(s)
+        .   fickling     LIKELY_SAFE
+        .   hayward      
+
+  benign-slashed-tensor-names  [benign]
+        .   picklescan   
+        .   modelscan    ERROR: no files scanned
+        .   modelaudit   0 issue(s)
+        .   fickling     ERROR: Fickling failed to parse this pickle file. Error: No pickle files detecte
+        .   hayward      
+
+  benign-adjacent-offsets  [benign]
+        .   picklescan   
+        .   modelscan    ERROR: no files scanned
+        .   modelaudit   0 issue(s)
+        .   fickling     ERROR: Fickling failed to parse this pickle file. Error: No pickle files detecte
+        .   hayward      
+
+  benign-onnx-sibling-weights  [benign]
+        .   picklescan   
+        .   modelscan    ERROR: no files scanned
+        .   modelaudit   1 issue(s), worst info
+        .   fickling     ERROR: Fickling failed to parse this pickle file. Error: No pickle files detecte
+        .   hayward      
+
+  benign-jinja-chat-template  [benign]
+        .   picklescan   
+        .   modelscan    ERROR: no files scanned
+        .   modelaudit   0 issue(s)
+      flag  fickling     LIKELY_UNSAFE
+        .   hayward      
+
+  benign-code-trained-vocab  [benign]
+        .   picklescan   
+        .   modelscan    ERROR: no files scanned
+        .   modelaudit   1 issue(s), worst info
+      flag  fickling     LIKELY_UNSAFE
+        .   hayward      
+
+  benign-compressed-joblib  [benign]
+        .   picklescan   
+        .   modelscan    ERROR: Parsing error: at position 0, opcode b'\xfd' unknown
+        .   modelaudit   0 issue(s)
+        .   fickling     ERROR: Fickling failed to parse this pickle file. Error: No pickle files detecte
+        .   hayward      
+
+  benign-weights-starting-like-pickle  [benign]
+        .   picklescan   
+        .   modelscan    0 issue(s)
+      flag  modelaudit   4 issue(s), worst critical
+        .   fickling     LIKELY_SAFE
+        .   hayward      
+
+  benign-pickle-after-raw-bytes  [benign]
+        .   picklescan   
+        .   modelscan    ERROR: Parsing error: at position 46, opcode b'\x00' unknown
+        .   modelaudit   1 issue(s), worst info
+        .   fickling     LIKELY_SAFE
+        .   hayward      
+
+  AWeirdDev--human-disease-prediction--sklearn_model.joblib  [benign]
+        .   picklescan   ERROR: parse failure
+        .   modelscan    0 issue(s)
+      flag  modelaudit   11 issue(s), worst critical
+      flag  fickling     LIKELY_OVERTLY_MALICIOUS
+        .   hayward      
+
+  AbhishekS2005--mlforge-test-model--linear_regression.joblib  [benign]
+        .   picklescan   ERROR: parse failure
+        .   modelscan    ERROR: Parsing error: at position 352, opcode b'\x0f' unknown
+        .   modelaudit   4 issue(s), worst warning
+      flag  fickling     LIKELY_OVERTLY_MALICIOUS
+        .   hayward      
+
+  AbhishekS2005--mlforge-test-model--sgd_classifier.pkl  [benign]
+        .   picklescan   
+        .   modelscan    0 issue(s)
+        .   modelaudit   5 issue(s), worst warning
+      flag  fickling     LIKELY_UNSAFE
+        .   hayward      
+
+  Dilipk--flask-classification-model--classification_model.joblib  [benign]
+        .   picklescan   ERROR: parse failure
+        .   modelscan    0 issue(s)
+      flag  modelaudit   10 issue(s), worst critical
+      flag  fickling     LIKELY_OVERTLY_MALICIOUS
+        .   hayward      
+
+  Kratim-Budhimata--Regression-is-Attention--scaler_minmax_x.joblib  [benign]
+        .   picklescan   ERROR: parse failure
+        .   modelscan    ERROR: Parsing error: at position 362, opcode b'\x05' unknown
+        .   modelaudit   3 issue(s), worst warning
+      flag  fickling     LIKELY_OVERTLY_MALICIOUS
+        .   hayward      
+
+  Kratim-Budhimata--Regression-is-Attention--scaler_minmax_y.joblib  [benign]
+        .   picklescan   ERROR: parse failure
+        .   modelscan    ERROR: Parsing error: at position 362, opcode b'\x05' unknown
+        .   modelaudit   3 issue(s), worst warning
+      flag  fickling     LIKELY_OVERTLY_MALICIOUS
+        .   hayward      
+
+  Steenslid--ecg-ptbxl-classification--ecg_cnn_final.keras  [benign]
+        .   picklescan   ERROR: scanned 0 files
+        .   modelscan    ERROR: To use modelscan.scanners.KerasLambdaDetectScan, please install modelscan
+      flag  modelaudit   3 issue(s), worst critical
+        .   fickling     ERROR: Fickling failed to parse this pickle file. Error: No pickle files detecte
+        .   hayward      
+
+  TasnimMer--callcenter-tfidf--tfidf_svm_model.pkl  [benign]
+        .   picklescan   ERROR: parse failure
+        .   modelscan    ERROR: Parsing error: at position 1480, opcode b'\x07' unknown
+      flag  modelaudit   19 issue(s), worst critical
+      flag  fickling     LIKELY_OVERTLY_MALICIOUS
+        .   hayward      
+
+  danupurnomo--dummy-titanic--final_pipeline.pkl  [benign]
+        .   picklescan   ERROR: parse failure
+        .   modelscan    0 issue(s)
+      flag  modelaudit   27 issue(s), worst critical
+      flag  fickling     LIKELY_OVERTLY_MALICIOUS
+        .   hayward      
+
+  danupurnomo--dummy-titanic--sklearn_model.joblib  [benign]
+        .   picklescan   ERROR: parse failure
+        .   modelscan    0 issue(s)
+      flag  modelaudit   20 issue(s), worst critical
+      flag  fickling     LIKELY_OVERTLY_MALICIOUS
+        .   hayward      
+
+  daxa-ai--pebblo-classifier--label_encoder.joblib  [benign]
+        .   picklescan   
+        .   modelscan    0 issue(s)
+        .   modelaudit   8 issue(s), worst warning
+      flag  fickling     LIKELY_OVERTLY_MALICIOUS
+        .   hayward      
+
+  echarlaix--tiny-random-PhiForCausalLM--model.safetensors  [benign]
+        .   picklescan   
+        .   modelscan    ERROR: no files scanned
+        .   modelaudit   0 issue(s)
+      flag  fickling     LIKELY_UNSAFE
+        .   hayward      
+
+  google--bert_uncased_L-12_H-128_A-2--flax_model.msgpack  [benign]
+        .   picklescan   
+        .   modelscan    ERROR: no files scanned
+        .   modelaudit   0 issue(s)
+      flag  fickling     LIKELY_OVERTLY_MALICIOUS
+        .   hayward      
+
+  google--bert_uncased_L-12_H-128_A-2--pytorch_model.bin  [benign]
+        .   picklescan   
+        .   modelscan    0 issue(s)
+        .   modelaudit   1 issue(s), worst warning
+      flag  fickling     LIKELY_UNSAFE
+        .   hayward      
+
+  google--bert_uncased_L-2_H-128_A-2--flax_model.msgpack  [benign]
+        .   picklescan   
+        .   modelscan    ERROR: no files scanned
+        .   modelaudit   0 issue(s)
+      flag  fickling     LIKELY_OVERTLY_MALICIOUS
+        .   hayward      
+
+  google--bert_uncased_L-2_H-128_A-2--model.safetensors  [benign]
+        .   picklescan   
+        .   modelscan    ERROR: no files scanned
+        .   modelaudit   0 issue(s)
+      flag  fickling     LIKELY_UNSAFE
+        .   hayward      
+
+  google--bert_uncased_L-2_H-128_A-2--pytorch_model.bin  [benign]
+        .   picklescan   
+        .   modelscan    0 issue(s)
+        .   modelaudit   1 issue(s), worst warning
+      flag  fickling     LIKELY_UNSAFE
+        .   hayward      
+
+  google--bert_uncased_L-4_H-128_A-2--flax_model.msgpack  [benign]
+        .   picklescan   
+        .   modelscan    ERROR: no files scanned
+        .   modelaudit   0 issue(s)
+      flag  fickling     LIKELY_OVERTLY_MALICIOUS
+        .   hayward      
+
+  google--bert_uncased_L-6_H-128_A-2--flax_model.msgpack  [benign]
+        .   picklescan   
+        .   modelscan    ERROR: no files scanned
+        .   modelaudit   0 issue(s)
+      flag  fickling     LIKELY_OVERTLY_MALICIOUS
+        .   hayward      
+
+  google--bert_uncased_L-6_H-128_A-2--pytorch_model.bin  [benign]
+        .   picklescan   
+        .   modelscan    0 issue(s)
+        .   modelaudit   1 issue(s), worst warning
+      flag  fickling     LIKELY_UNSAFE
+        .   hayward      
+
+  google--bert_uncased_L-8_H-128_A-2--pytorch_model.bin  [benign]
+        .   picklescan   
+        .   modelscan    0 issue(s)
+        .   modelaudit   1 issue(s), worst warning
+      flag  fickling     LIKELY_UNSAFE
+        .   hayward      
+
+  griko--age_reg_svr_ecapa_voxceleb2--scaler.joblib  [benign]
+        .   picklescan   ERROR: parse failure
+        .   modelscan    0 issue(s)
+        .   modelaudit   10 issue(s), worst warning
+      flag  fickling     LIKELY_OVERTLY_MALICIOUS
+        .   hayward      
+
+  handy-computer--whisper-tiny-gguf--whisper-tiny-Q4_K_M.gguf  [benign]
+        .   picklescan   
+        .   modelscan    ERROR: no files scanned
+        .   modelaudit   0 issue(s)
+      flag  fickling     LIKELY_UNSAFE
+        .   hayward      
+
+  handy-computer--whisper-tiny-gguf--whisper-tiny-Q5_K_M.gguf  [benign]
+        .   picklescan   
+        .   modelscan    ERROR: no files scanned
+        .   modelaudit   0 issue(s)
+      flag  fickling     LIKELY_UNSAFE
+        .   hayward      
+
+  handy-computer--whisper-tiny-gguf--whisper-tiny-Q6_K.gguf  [benign]
+        .   picklescan   
+        .   modelscan    ERROR: no files scanned
+        .   modelaudit   0 issue(s)
+      flag  fickling     LIKELY_UNSAFE
+        .   hayward      
+
+  hf-internal-testing--tiny-random-bert--tf_model.h5  [benign]
+        .   picklescan   
+        .   modelscan    ERROR: To use modelscan.scanners.H5LambdaDetectScan, please install modelscan wi
+        .   modelaudit   1 issue(s), worst info
+      flag  fickling     LIKELY_UNSAFE
+        .   hayward      
+
+  hf-internal-testing--tiny-random-t5--tf_model.h5  [benign]
+        .   picklescan   
+        .   modelscan    ERROR: To use modelscan.scanners.H5LambdaDetectScan, please install modelscan wi
+        .   modelaudit   1 issue(s), worst info
+      flag  fickling     LIKELY_UNSAFE
+        .   hayward      
+
+  imshriya--mlforge-cicd-test-model--sgd_classifier.pkl  [benign]
+        .   picklescan   
+        .   modelscan    0 issue(s)
+        .   modelaudit   5 issue(s), worst warning
+      flag  fickling     LIKELY_UNSAFE
+        .   hayward      
+
+  incrediblestand--fedlytics-typhoid--minmax_scaler.joblib  [benign]
+        .   picklescan   ERROR: parse failure
+        .   modelscan    ERROR: argument of type 'NoneType' is not iterable
+      flag  modelaudit   10 issue(s), worst critical
+      flag  fickling     LIKELY_OVERTLY_MALICIOUS
+        .   hayward      
+
+  julien-c--wine-quality--sklearn_model.joblib  [benign]
+        .   picklescan   ERROR: parse failure
+        .   modelscan    ERROR: Parsing error: at position 459, opcode b'\xf3' unknown
+        .   modelaudit   6 issue(s), worst warning
+      flag  fickling     LIKELY_OVERTLY_MALICIOUS
+        .   hayward      
+
+  kjfk--galaxy-bar-detection-resnet50--regression_ensemble--ensemble_test_pred.npy  [benign]
+        .   picklescan   
+        .   modelscan    ERROR: module 'numpy.lib.format' has no attribute '_check_version'
+        .   modelaudit   0 issue(s)
+      flag  fickling     LIKELY_UNSAFE
+        .   hayward      
+
+  kjfk--galaxy-bar-detection-resnet50--regression_resnet50--test_pred.npy  [benign]
+        .   picklescan   
+        .   modelscan    ERROR: module 'numpy.lib.format' has no attribute '_check_version'
+        .   modelaudit   0 issue(s)
+      flag  fickling     LIKELY_UNSAFE
+        .   hayward      
+
+  llamafactory--tiny-random-Llama-3--model.safetensors  [benign]
+        .   picklescan   
+        .   modelscan    ERROR: no files scanned
+        .   modelaudit   0 issue(s)
+      flag  fickling     LIKELY_UNSAFE
+        .   hayward      
+
+  lysandre--test-trainer--model.safetensors  [benign]
+        .   picklescan   
+        .   modelscan    ERROR: no files scanned
+        .   modelaudit   0 issue(s)
+      flag  fickling     LIKELY_UNSAFE
+        .   hayward      
+
+  mmx86--hf_heart--sklearn_model.joblib  [benign]
+        .   picklescan   
+        .   modelscan    0 issue(s)
+        .   modelaudit   4 issue(s), worst warning
+      flag  fickling     LIKELY_UNSAFE
+        .   hayward      
+
+  mohammed781234712--amazon-books-sentiment--label_encoder.pkl  [benign]
+        .   picklescan   
+        .   modelscan    0 issue(s)
+        .   modelaudit   4 issue(s), worst warning
+      flag  fickling     LIKELY_UNSAFE
+        .   hayward      
+
+  mohammed781234712--amazon-books-sentiment--model.pkl  [benign]
+        .   picklescan   
+        .   modelscan    0 issue(s)
+      flag  modelaudit   17 issue(s), worst critical
+      flag  fickling     LIKELY_UNSAFE
+        .   hayward      
+
+  mradermacher--jina-reranker-v1-tiny-en-GGUF--jina-reranker-v1-tiny-en.IQ4_XS.gguf  [benign]
+        .   picklescan   
+        .   modelscan    ERROR: no files scanned
+        .   modelaudit   24 issue(s), worst info
+      flag  fickling     LIKELY_UNSAFE
+        .   hayward      
+
+  mradermacher--jina-reranker-v1-tiny-en-GGUF--jina-reranker-v1-tiny-en.Q2_K.gguf  [benign]
+        .   picklescan   
+        .   modelscan    ERROR: no files scanned
+        .   modelaudit   24 issue(s), worst info
+      flag  fickling     LIKELY_UNSAFE
+        .   hayward      
+
+  mradermacher--jina-reranker-v1-tiny-en-GGUF--jina-reranker-v1-tiny-en.Q3_K_L.gguf  [benign]
+        .   picklescan   
+        .   modelscan    ERROR: no files scanned
+        .   modelaudit   16 issue(s), worst info
+      flag  fickling     LIKELY_UNSAFE
+        .   hayward      
+
+  mrm8488--bert-tiny-finetuned-sms-spam-detection--model.safetensors  [benign]
+        .   picklescan   
+        .   modelscan    ERROR: no files scanned
+        .   modelaudit   0 issue(s)
+      flag  fickling     LIKELY_UNSAFE
+        .   hayward      
+
+  mrm8488--bert-tiny-finetuned-yahoo_answers_topics--model.safetensors  [benign]
+        .   picklescan   
+        .   modelscan    ERROR: no files scanned
+        .   modelaudit   0 issue(s)
+      flag  fickling     LIKELY_UNSAFE
+        .   hayward      
+
+  optimum-intel-internal-testing--tiny-random-BlenderbotModel--tf_model.h5  [benign]
+        .   picklescan   
+        .   modelscan    ERROR: To use modelscan.scanners.H5LambdaDetectScan, please install modelscan wi
+        .   modelaudit   1 issue(s), worst info
+      flag  fickling     LIKELY_UNSAFE
+        .   hayward      
+
+  optimum-intel-internal-testing--tiny-random-distilbert--tf_model.h5  [benign]
+        .   picklescan   
+        .   modelscan    ERROR: To use modelscan.scanners.H5LambdaDetectScan, please install modelscan wi
+        .   modelaudit   1 issue(s), worst info
+      flag  fickling     LIKELY_UNSAFE
+        .   hayward      
+
+  optimum-intel-internal-testing--tiny-random-gpt2--tf_model.h5  [benign]
+        .   picklescan   
+        .   modelscan    ERROR: To use modelscan.scanners.H5LambdaDetectScan, please install modelscan wi
+        .   modelaudit   1 issue(s), worst info
+      flag  fickling     LIKELY_UNSAFE
+        .   hayward      
+
+  optimum-intel-internal-testing--tiny-random-roberta--tf_model.h5  [benign]
+        .   picklescan   
+        .   modelscan    ERROR: To use modelscan.scanners.H5LambdaDetectScan, please install modelscan wi
+        .   modelaudit   1 issue(s), worst info
+      flag  fickling     LIKELY_UNSAFE
+        .   hayward      
+
+  optimum-intel-internal-testing--tiny-random-whisper--model.safetensors  [benign]
+        .   picklescan   
+        .   modelscan    ERROR: no files scanned
+        .   modelaudit   0 issue(s)
+      flag  fickling     LIKELY_UNSAFE
+        .   hayward      
+
+  patrickvonplaten--debug_repo--flax_wav2vec2--logits.npy  [benign]
+        .   picklescan   
+        .   modelscan    ERROR: module 'numpy.lib.format' has no attribute '_check_version'
+        .   modelaudit   1 issue(s), worst info
+      flag  fickling     LIKELY_UNSAFE
+        .   hayward      
+
+  patrickvonplaten--t5-tiny-random--flax_model.msgpack  [benign]
+        .   picklescan   
+        .   modelscan    ERROR: no files scanned
+        .   modelaudit   0 issue(s)
+      flag  fickling     LIKELY_UNSAFE
+        .   hayward      
+
+  patrickvonplaten--t5-tiny-random--pytorch_model.bin  [benign]
+        .   picklescan   
+        .   modelscan    0 issue(s)
+        .   modelaudit   1 issue(s), worst warning
+      flag  fickling     LIKELY_UNSAFE
+        .   hayward      
+
+  patrickvonplaten--t5-tiny-random--tf_model.h5  [benign]
+        .   picklescan   
+        .   modelscan    ERROR: To use modelscan.scanners.H5LambdaDetectScan, please install modelscan wi
+        .   modelaudit   1 issue(s), worst info
+      flag  fickling     LIKELY_UNSAFE
+        .   hayward      
+
+  pfizer-project-team--binary-segA-vs-segBC--sklearn_model.joblib  [benign]
+        .   picklescan   ERROR: parse failure
+        .   modelscan    ERROR: Parsing error: at position 821, opcode b'\n' unknown
+        .   modelaudit   13 issue(s), worst warning
+      flag  fickling     LIKELY_OVERTLY_MALICIOUS
+        .   hayward      
+
+  prabinpanta0--Patient-Readmission-Prediction--model_K_nearest.pkl  [benign]
+        .   picklescan   ERROR: parse failure
+        .   modelscan    0 issue(s)
+      flag  modelaudit   17 issue(s), worst critical
+      flag  fickling     LIKELY_OVERTLY_MALICIOUS
+        .   hayward      
+
+  prabinpanta0--Patient-Readmission-Prediction--model_Logistic_Regression.pkl  [benign]
+        .   picklescan   ERROR: parse failure
+        .   modelscan    0 issue(s)
+      flag  modelaudit   14 issue(s), worst critical
+      flag  fickling     LIKELY_OVERTLY_MALICIOUS
+        .   hayward      
+
+  prajjwal1--albert-base-v1-mnli--training_args.bin  [benign]
+        .   picklescan   
+        .   modelscan    0 issue(s)
+        .   modelaudit   2 issue(s), worst warning
+      flag  fickling     LIKELY_UNSAFE
+        .   hayward      
+
+  prajjwal1--albert-base-v2-mnli--model.safetensors  [benign]
+        .   picklescan   
+        .   modelscan    ERROR: no files scanned
+        .   modelaudit   0 issue(s)
+      flag  fickling     LIKELY_UNSAFE
+        .   hayward      
+
+  prajjwal1--albert-base-v2-mnli--training_args.bin  [benign]
+        .   picklescan   
+        .   modelscan    0 issue(s)
+        .   modelaudit   2 issue(s), worst warning
+      flag  fickling     LIKELY_UNSAFE
+        .   hayward      
+
+  prajjwal1--bert-tiny-mnli--flax_model.msgpack  [benign]
+        .   picklescan   
+        .   modelscan    ERROR: no files scanned
+        .   modelaudit   0 issue(s)
+      flag  fickling     LIKELY_UNSAFE
+        .   hayward      
+
+  rawqubit--ClassicML-Prompt-Injection-Detector--sklearn_model.joblib  [benign]
+        .   picklescan   ERROR: parse failure
+        .   modelscan    ERROR: Parsing error: at position 768, opcode b'\x0f' unknown
+        .   modelaudit   6 issue(s), worst warning
+      flag  fickling     LIKELY_OVERTLY_MALICIOUS
+        .   hayward      
+
+  salnakuruvi--567-npy-put-underflow--model.npy  [benign]
+        .   picklescan   
+        .   modelscan    ERROR: module 'numpy.lib.format' has no attribute '_check_version'
+        .   modelaudit   1 issue(s), worst info
+      flag  fickling     LIKELY_UNSAFE
+        .   hayward      
+
+  sentence-transformers--paraphrase-albert-small-v2--model.safetensors  [benign]
+        .   picklescan   
+        .   modelscan    ERROR: no files scanned
+        .   modelaudit   0 issue(s)
+      flag  fickling     LIKELY_UNSAFE
+        .   hayward      
+
+  sshleifer--bart-tiny-random--flax_model.msgpack  [benign]
+        .   picklescan   
+        .   modelscan    ERROR: no files scanned
+        .   modelaudit   0 issue(s)
+      flag  fickling     LIKELY_OVERTLY_MALICIOUS
+        .   hayward      
+
+  sshleifer--bart-tiny-random--pytorch_model.bin  [benign]
+        .   picklescan   
+        .   modelscan    0 issue(s)
+        .   modelaudit   1 issue(s), worst warning
+      flag  fickling     LIKELY_UNSAFE
+        .   hayward      
+
+  sshleifer--bart-tiny-random--tf_model.h5  [benign]
+        .   picklescan   
+        .   modelscan    ERROR: To use modelscan.scanners.H5LambdaDetectScan, please install modelscan wi
+        .   modelaudit   1 issue(s), worst info
+      flag  fickling     LIKELY_UNSAFE
+        .   hayward      
+
+  sshleifer--tiny-ctrl--pytorch_model.bin  [benign]
+        .   picklescan   
+        .   modelscan    0 issue(s)
+        .   modelaudit   1 issue(s), worst warning
+      flag  fickling     LIKELY_UNSAFE
+        .   hayward      
+
+  sshleifer--tiny-dbmdz-bert-large-cased-finetuned-conll03-english--flax_model.msgpack  [benign]
+        .   picklescan   
+        .   modelscan    ERROR: no files scanned
+        .   modelaudit   0 issue(s)
+      flag  fickling     LIKELY_UNSAFE
+        .   hayward      
+
+  sshleifer--tiny-dbmdz-bert-large-cased-finetuned-conll03-english--pytorch_model.bin  [benign]
+        .   picklescan   
+        .   modelscan    0 issue(s)
+        .   modelaudit   1 issue(s), worst warning
+      flag  fickling     LIKELY_UNSAFE
+        .   hayward      
+
+  sshleifer--tiny-dbmdz-bert-large-cased-finetuned-conll03-english--tf_model.h5  [benign]
+        .   picklescan   
+        .   modelscan    ERROR: To use modelscan.scanners.H5LambdaDetectScan, please install modelscan wi
+        .   modelaudit   1 issue(s), worst info
+      flag  fickling     LIKELY_UNSAFE
+        .   hayward      
+
+  sshleifer--tiny-distilbert-base-cased--tf_model.h5  [benign]
+        .   picklescan   
+        .   modelscan    ERROR: To use modelscan.scanners.H5LambdaDetectScan, please install modelscan wi
+        .   modelaudit   1 issue(s), worst info
+      flag  fickling     LIKELY_UNSAFE
+        .   hayward      
+
+  sshleifer--tiny-distilbert-base-cased-distilled-squad--pytorch_model.bin  [benign]
+        .   picklescan   
+        .   modelscan    0 issue(s)
+        .   modelaudit   1 issue(s), worst warning
+      flag  fickling     LIKELY_UNSAFE
+        .   hayward      
+
+  sshleifer--tiny-distilbert-base-cased-distilled-squad--tf_model.h5  [benign]
+        .   picklescan   
+        .   modelscan    ERROR: To use modelscan.scanners.H5LambdaDetectScan, please install modelscan wi
+        .   modelaudit   1 issue(s), worst info
+      flag  fickling     LIKELY_UNSAFE
+        .   hayward      
+
+  sshleifer--tiny-distilbert-base-uncased-finetuned-sst-2-english--tf_model.h5  [benign]
+        .   picklescan   
+        .   modelscan    ERROR: To use modelscan.scanners.H5LambdaDetectScan, please install modelscan wi
+        .   modelaudit   1 issue(s), worst info
+      flag  fickling     LIKELY_UNSAFE
+        .   hayward      
+
+  sshleifer--tiny-distilroberta-base--flax_model.msgpack  [benign]
+        .   picklescan   
+        .   modelscan    ERROR: no files scanned
+        .   modelaudit   0 issue(s)
+      flag  fickling     LIKELY_UNSAFE
+        .   hayward      
+
+  sshleifer--tiny-distilroberta-base--pytorch_model.bin  [benign]
+        .   picklescan   
+        .   modelscan    0 issue(s)
+        .   modelaudit   1 issue(s), worst warning
+      flag  fickling     LIKELY_UNSAFE
+        .   hayward      
+
+  sshleifer--tiny-distilroberta-base--tf_model.h5  [benign]
+        .   picklescan   
+        .   modelscan    ERROR: To use modelscan.scanners.H5LambdaDetectScan, please install modelscan wi
+        .   modelaudit   1 issue(s), worst info
+      flag  fickling     LIKELY_UNSAFE
+        .   hayward      
+
+  sshleifer--tiny-marian-en-de--pytorch_model.bin  [benign]
+        .   picklescan   
+        .   modelscan    0 issue(s)
+        .   modelaudit   1 issue(s), worst warning
+      flag  fickling     LIKELY_UNSAFE
+        .   hayward      
+
+  sshleifer--tiny-mbart--pytorch_model.bin  [benign]
+        .   picklescan   
+        .   modelscan    0 issue(s)
+        .   modelaudit   1 issue(s), worst warning
+      flag  fickling     LIKELY_UNSAFE
+        .   hayward      
+
+  sshleifer--tiny-mbart--tf_model.h5  [benign]
+        .   picklescan   
+        .   modelscan    ERROR: To use modelscan.scanners.H5LambdaDetectScan, please install modelscan wi
+        .   modelaudit   1 issue(s), worst info
+      flag  fickling     LIKELY_UNSAFE
+        .   hayward      
+
+  sshleifer--tiny-xlnet-base-cased--pytorch_model.bin  [benign]
+        .   picklescan   
+        .   modelscan    0 issue(s)
+        .   modelaudit   1 issue(s), worst warning
+      flag  fickling     LIKELY_UNSAFE
+        .   hayward      
+
+  timm--resnet18.a1_in1k--model.safetensors  [benign]
+        .   picklescan   
+        .   modelscan    ERROR: no files scanned
+        .   modelaudit   0 issue(s)
+      flag  fickling     LIKELY_UNSAFE
+        .   hayward      
+
+  unsloth--DeepSeek-V4-Flash-0731-GGUF--UD-IQ1_M--DeepSeek-V4-Flash-0731-UD-IQ1_M-00001-of-00003.gguf  [benign]
+        .   picklescan   
+        .   modelscan    ERROR: no files scanned
+        .   modelaudit   0 issue(s)
+      flag  fickling     LIKELY_UNSAFE
+        .   hayward      
+
+  unsloth--DeepSeek-V4-Flash-0731-GGUF--UD-IQ1_S--DeepSeek-V4-Flash-0731-UD-IQ1_S-00001-of-00003.gguf  [benign]
+        .   picklescan   
+        .   modelscan    ERROR: no files scanned
+        .   modelaudit   0 issue(s)
+      flag  fickling     LIKELY_UNSAFE
+        .   hayward      
+
+  unsloth--DeepSeek-V4-Flash-0731-GGUF--UD-IQ2_M--DeepSeek-V4-Flash-0731-UD-IQ2_M-00001-of-00003.gguf  [benign]
+        .   picklescan   
+        .   modelscan    ERROR: no files scanned
+        .   modelaudit   0 issue(s)
+      flag  fickling     LIKELY_UNSAFE
+        .   hayward      
+
+  valhalla--ddpm-ema-pokemon-64--checkpoint-1000--random_states_0.pkl  [benign]
+        .   picklescan   
+        .   modelscan    ERROR: Parsing error: at position 29, opcode b'\x00' unknown
+      flag  modelaudit   9 issue(s), worst critical
+        .   fickling     ERROR: Traceback (most recent call last):
+        .   hayward      
+
+  vvmnnnkv--wine-quality--model.pkl  [benign]
+        .   picklescan   
+        .   modelscan    0 issue(s)
+      flag  modelaudit   22 issue(s), worst critical
+      flag  fickling     LIKELY_UNSAFE
+        .   hayward      
+
+  vvmnnnkv--wine-quality--model_w_features.pkl  [benign]
+        .   picklescan   
+        .   modelscan    0 issue(s)
+      flag  modelaudit   22 issue(s), worst critical
+      flag  fickling     LIKELY_UNSAFE
+        .   hayward      
+
+  waghelad--dgvj-work--risk_classifier.joblib  [benign]
+        .   picklescan   ERROR: parse failure
+        .   modelscan    ERROR: Parsing error: at position 763, opcode b'\x04' unknown
+        .   modelaudit   7 issue(s), worst warning
+      flag  fickling     LIKELY_OVERTLY_MALICIOUS
+        .   hayward      
+
+EXTERNALLY-AUTHORED CORPORA
+
+  picklescan test corpus  [MIT]
+  https://github.com/mmaitre314/picklescan
+    picklescan's own test suite, so picklescan scores near-perfectly on it by
+    construction and its column here means little. The informative columns are
+    everyone else's. Labels come from the filename convention the author uses
+    (malicious* / benign*).
+
+      picklescan           detection 34/35 (97%)    false positives 0/3 (0%) (38/39 covered)
+      modelscan            detection 24/29 (83%)    false positives 0/3 (0%) (32/39 covered)
+      modelaudit           detection 30/36 (83%)    false positives 0/3 (0%) (39/39 covered)
+      modelaudit +unknown  detection 31/36 (86%)    false positives 0/3 (0%)
+      fickling             detection 29/29 (100%)   false positives 0/3 (0%) (32/39 covered)
+      hayward              detection 35/35 (100%)   false positives 0/3 (0%) (38/39 covered)
+
+  PickleCloak gadget exploits  [none declared (all rights reserved)]
+  https://github.com/Lyutoon/PickleCloak
+    Generated by a static-analysis plus LLM pipeline that mines the standard
+    library for gadget chains, so it contains resolvers nobody has put on a
+    list. Payloads are benign commands (touch, ls, whoami) per the authors'
+    ethics statement. NO BENIGN HALF: a scanner that flags every file scores
+    100%, so read detection here only alongside the false-positive column from
+    a corpus that has one.
+
+      picklescan           detection 27/57 (47%)    false positives no benign half (57/57 covered)
+      picklescan +unknown  detection 57/57 (100%)   false positives no benign half
+      modelscan            detection 0/57 (0%)      false positives no benign half (57/57 covered)
+      modelaudit           detection 51/57 (89%)    false positives no benign half (57/57 covered)
+      modelaudit +unknown  detection 57/57 (100%)   false positives no benign half
+      fickling             detection 57/57 (100%)   false positives no benign half (57/57 covered)
+      hayward              detection 51/57 (89%)    false positives no benign half (57/57 covered)
+      hayward +unknown     detection 57/57 (100%)   false positives no benign half
+
+  PickleCloak AEG chains  [none declared (all rights reserved)]
+  https://github.com/Lyutoon/PickleCloak
+    Chained-exploit variants from the same pipeline. NO BENIGN HALF: a scanner
+    that flags every file scores 100%, so read detection here only alongside
+    the false-positive column from a corpus that has one.
+
+      picklescan           detection 41/97 (42%)    false positives no benign half (97/97 covered)
+      picklescan +unknown  detection 97/97 (100%)   false positives no benign half
+      modelscan            detection 0/97 (0%)      false positives no benign half (97/97 covered)
+      modelaudit           detection 70/97 (72%)    false positives no benign half (97/97 covered)
+      modelaudit +unknown  detection 97/97 (100%)   false positives no benign half
+      fickling             detection 97/97 (100%)   false positives no benign half (97/97 covered)
+      hayward              detection 91/97 (94%)    false positives no benign half (97/97 covered)
+      hayward +unknown     detection 97/97 (100%)   false positives no benign half
+
+corpus: (temporary, discarded)
+scanners run: picklescan unknown [MIT], modelscan 0.8.8 [Apache-2.0], modelaudit 0.2.54 [MIT], fickling 0.1.13 [LGPL-3.0], hayward 1.16.1 [MIT]
+wrote results-2026-11-05.json
+RUN-EXIT 0

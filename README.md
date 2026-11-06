@@ -4,7 +4,7 @@
 
 ![License MIT](https://img.shields.io/badge/license-MIT-013D5A?style=flat-square&labelColor=013D5A)
 ![Python 3.12](https://img.shields.io/badge/python-3.12-013D5A?style=flat-square&labelColor=013D5A)
-![Test cases 251](https://img.shields.io/badge/cases-251-013D5A?style=flat-square&labelColor=013D5A)
+![Test cases 248](https://img.shields.io/badge/cases-248-013D5A?style=flat-square&labelColor=013D5A)
 ![Scanners 5](https://img.shields.io/badge/scanners-5-708C69?style=flat-square&labelColor=013D5A)
 ![Zero malware on disk](https://img.shields.io/badge/malware_on_disk-none-F4A25B?style=flat-square&labelColor=013D5A)
 
@@ -23,7 +23,7 @@ Multiple scanners have emerged to detect malicious checkpoints before deployment
 - **Silent non-coverage**: Some scanners show "0% false positives" simply because they silently ignore modern container formats without parsing them.
 - **Weapons caches**: Prior benchmarks often distributed live malware on disk, risking accidental execution.
 
-`quickset` provides an **independent, transparent, and reproducible benchmark** to measure how scanners actually perform against real-world models and realistic attack vectors.
+`quickset` provides a **transparent and reproducible benchmark** to measure how scanners actually perform against real-world models and realistic attack vectors. It is built by Hedgerow, who also build Hayward, one of the scanners it measures: see the disclosure at the end.
 
 ---
 
@@ -45,31 +45,38 @@ Quickset evaluates scanners across two distinct, complementary datasets:
 
 ## Tool Comparison
 
-Benchmark results measured across 251 total test cases (26 malicious + 225 benign models, including 213 real Hugging Face models):
+Results from the run of 5 November 2026: 26 generated malicious cases and 222 benign files (the 210 real Hugging Face models in the manifest, plus 12 generated benign cases). Raw per-file results, the run log and the environment are in [`evidence/2026-11-05-scanner-comparison/`](evidence/2026-11-05-scanner-comparison/).
 
-| Scanner | Backed By | Actionable Detection | Overall Detection | False Positives | Format Coverage | Primary Strength |
+Every rate is over the files that scanner returned a verdict on, so denominators differ between scanners. False positives are reported at **both thresholds**: the strict one counts only the tier each tool's author calls actionable, and the second adds the tool's own unknown or warning tier. Reporting only the first hides most of the difference between tools.
+
+| Scanner | Backed By | Detection (of files read) | Detection (of corpus) | False positives, strict | Benign files flagged, incl. warnings | Coverage |
 |---|---|---|---|---|---|---|
-| **[Hayward](https://github.com/hedgerow-dev/hayward)** | Hedgerow | **100%** (26/26) | **100%** (26/26) | **0%** (0/225) | **100%** (251/251) | Deterministic CI/CD gating, zero false positives, multi-format coverage |
-| **[modelaudit](https://github.com/mindsdb/modelaudit)** | Promptfoo | **69%** (18/26) | **69%** (18/26) | **6%** (14/225) | **100%** (251/251) | Fast multi-format triage & auditing |
-| **[fickling](https://github.com/trailofbits/fickling)** | Trail of Bits | **94%** (16/17) | **62%** (16/26) | **96%** (88/92) | **43%** (109/251) | Static pickle bytecode analysis & decompilation |
-| **[picklescan](https://github.com/mmaitre314/picklescan)** | Hugging Face ecosystem | **50%** (12/24) | **46%** (12/26) | **1%** (1/192) | **86%** (216/251) | Lightweight, fast pickle scanning |
-| **[modelscan](https://github.com/protectai/modelscan)** | Protect AI | **38%** (5/13) | **19%** (5/26) | **0%** (0/80) | **37%** (93/251) | Conservative operator blocklist scanning |
+| **[Hayward](https://github.com/hedgerow-dev/hayward)** 1.16.1 | Hedgerow | 26/26 (100%) | 26/26 (100%) | 0/222 (0%) | 7/222 (3%) | 248/248 (100%) |
+| **[modelaudit](https://github.com/promptfoo/promptfoo)** 0.2.54 | Promptfoo | 18/26 (69%) | 18/26 (69%) | 14/222 (6%) | 90/222 (41%) | 248/248 (100%) |
+| **[fickling](https://github.com/trailofbits/fickling)** 0.1.13 | Trail of Bits | 16/17 (94%) | 16/26 (62%) | 90/94 (96%) | 90/94 (96%) | 111/248 (45%) |
+| **[picklescan](https://github.com/mmaitre314/picklescan)** 1.0.5 | Hugging Face ecosystem | 12/24 (50%) | 12/26 (46%) | 1/192 (0.5%) | 38/192 (20%) | 216/248 (87%) |
+| **[modelscan](https://github.com/protectai/modelscan)** 0.8.8 | Protect AI | 5/13 (38%) | 5/26 (19%) | 0/80 (0%) | 0/80 (0%) | 93/248 (38%) |
 
 > **Interpreting the metrics:**
-> - **Actionable Detection**: Detection rate on malicious files the scanner *successfully opened and parsed*.
-> - **Overall Detection**: Detection rate across the *entire malicious corpus* (skipped formats count as misses).
-> - **False Positives**: Clean benign models incorrectly flagged as dangerous.
-> - **Format Coverage**: Percentage of test files and formats the scanner returned a verdict on (versus failing or skipping).
+> - **Detection (of files read)**: detection rate on malicious files the scanner returned a verdict on.
+> - **Detection (of corpus)**: detection rate across the whole malicious corpus, with files the scanner did not read counted as misses.
+> - **False positives, strict**: benign files flagged at the tier each tool's author calls actionable.
+> - **Benign files flagged, incl. warnings**: the same, adding each tool's unknown or warning tier (picklescan's suspicious, modelaudit's warning, fickling's SUSPICIOUS, Hayward's INFO). A warning asks a person to look; it is not an accusation of malware.
+> - **Coverage**: share of all files the scanner returned any verdict on, versus failing or skipping.
+>
+> **Hayward's detection here counts findings from LOW up.** At its default build gate (HIGH and above) it blocks 22 of the 26 generated cases, 46/57 PickleCloak exploits and 56/97 PickleCloak chains; see `evidence/2026-11-05-scanner-comparison/hayward-high-rescore-2026-11-06.txt`.
+>
+> **The 26 malicious cases were written by us, alongside Hayward, so they flatter it.** The externally authored corpora (picklescan's tests, PickleCloak) are reported separately by `python -m quickset.run` and are the better detection evidence. These are self-measured numbers until someone else reproduces them.
 
 ### Understanding Scanner Design Trade-offs
 
-The divergence in detection and false-positive rates reflects fundamentally different design goals and operational environments rather than defective implementations:
+The divergence in detection and flag rates reflects different design goals as well as implementation differences:
 
-- **fickling (Trail of Bits)**: Built primarily as an interactive forensic analysis, decompilation, and reverse-engineering tool for human security researchers. Its default heuristic assumes the file is an unknown, untrusted artifact under sandbox investigation: any non-standard-library import (`numpy`, `torch`, `sklearn`), any constructor instantiation (`__new__`), and any unreferenced variable assignment is flagged as `LIKELY_UNSAFE`. In a manual malware triage workflow, aggressive sensitivity is desirable. However, when deployed as an automated CI/CD gate on real-world ML repositories where legitimate models heavily utilize NumPy arrays and PyTorch tensors, this same sensitivity flags 96% of benign models.
-- **modelscan (Protect AI)**: Designed for automated CI/CD pipelines with an explicit requirement to avoid breaking developer workflows. It relies on a conservative allowlist and blocklist of known high-risk execution calls (`os.system`, `subprocess.Popen`, `eval`, `exec`). This achieves a 0% false-positive rate on clean models, but leaves the scanner blind to multi-stage gadget chains, indirect imports, and opcode desynchronization attacks (yielding 19% overall detection). Additionally, its parser coverage is focused on classic pickle files and skips non-pickle containers.
-- **picklescan (Hugging Face)**: Built as a lightweight, low-overhead filter for the Hugging Face model registry. It inspects global imports against a curated list of dangerous modules. This delivers rapid evaluation with minimal false positives (1%), but does not perform full abstract machine emulation, leaving it vulnerable to opcode-level evasion techniques.
-- **modelaudit (Promptfoo)**: Designed as a multi-format audit scanner covering 14 container formats. It balances speed with broader format awareness, showing solid detection (69%) with a low false-positive rate (6%) on complex legitimate pipelines.
-- **Hayward (Hedgerow)**: Engineered specifically for automated CI/CD gating and model registries without human triagers. Rather than relying on simple string blocklists (which miss evasions) or flagging all third-party imports (which breaks CI), Hayward simulates the pickle abstract machine, tracks stack states and memo registers, and evaluates callable arguments semantically. This allows it to distinguish legitimate tensor allocations from execution sinks with 0% false positives and 100% detection across all supported container formats.
+- **fickling (Trail of Bits)**: Focuses on pickle and pickle-based artifacts, with decompilation and forensic analysis as well as automated safety checks and import hooks. In the configuration tested here it rated 23 benign files LIKELY_OVERTLY_MALICIOUS and 67 more LIKELY_UNSAFE, and returned no verdict on non-pickle files.
+- **modelscan (Protect AI)**: Uses a conservative list of known high-risk calls, which gives no false positives on the 80 benign files it read but low detection on the generated cases. With a default install it returned no verdict on most files; it reports this with a separate exit code (3) and a `--show-skipped` option, so pipelines should check for it.
+- **picklescan (Hugging Face ecosystem)**: A lightweight check of pickle globals against curated lists. Its strict tier is very quiet (1 benign file); its suspicious tier flags 20%. When it cannot parse a file or has no reader for the format, its summary still reports zero infected files, so this harness counts those as no verdict.
+- **modelaudit (Promptfoo)**: Broad format coverage, with a verdict on every file. Its warning tier, which it describes as potential issues that require review, flags 41% of benign files and fails a build by default.
+- **Hayward (Hedgerow)**: Built for unattended CI gating. It simulates the pickle machine and judges callables by their arguments. It raised no strict-tier finding on any benign file and an INFO warning on 7 (3%); its default build gate fails on HIGH and above, so INFO does not fail a build.
 
 #### Why previous benchmarks reported different numbers
 
@@ -104,16 +111,19 @@ pip install picklescan modelscan fickling modelaudit hayward
 python -m quickset.run
 ```
 
-Quickset generates the inert test cases, runs all installed scanners, and prints the verified matrix:
+Quickset generates the inert test cases, runs all installed scanners, and prints the matrix at both thresholds (this is the 5 November 2026 run; `+unknown` rows add each tool's warning tier):
 
 ```
-scanner                of files read    of corpus        false positives    coverage
-----------------------------------------------------------------------------------
-picklescan             12/24 (50%)      12/26 (46%)      1/192 (1%)         216/251 (86%)
-modelscan              5/13 (38%)       5/26 (19%)       0/80 (0%)          93/251 (37%)
-modelaudit             18/26 (69%)      18/26 (69%)      14/225 (6%)        251/251 (100%)
-fickling               16/17 (94%)      16/26 (62%)      88/92 (96%)        109/251 (43%)
-hayward                26/26 (100%)     26/26 (100%)     0/225 (0%)         251/251 (100%)
+scanner                of files read    of corpus        false positives    coverage         errors
+----------------------------------------------------------------------------------------------
+picklescan             12/24 (50%)      12/26 (46%)      1/192 (1%)         216/248 (87%)    32
+picklescan +unknown    13/24 (54%)      13/26 (50%)      38/192 (20%)
+modelscan              5/13 (38%)       5/26 (19%)       0/80 (0%)          93/248 (38%)     155
+modelaudit             18/26 (69%)      18/26 (69%)      14/222 (6%)        248/248 (100%)   -
+modelaudit +unknown    22/26 (85%)      22/26 (85%)      90/222 (41%)
+fickling               16/17 (94%)      16/26 (62%)      90/94 (96%)        111/248 (45%)    137
+hayward                26/26 (100%)     26/26 (100%)     0/222 (0%)         248/248 (100%)   -
+hayward +unknown       26/26 (100%)     26/26 (100%)     7/222 (3%)
 ```
 
 ### 3. Options
