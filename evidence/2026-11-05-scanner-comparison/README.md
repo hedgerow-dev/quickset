@@ -11,6 +11,7 @@ write-up on hedgerow.dev can be checked file by file.
   authored corpora (picklescan tests, PickleCloak exploits and chains).
 - `fetch-models.log`: the benign-model download. 210 of 213 verified; two
   files now return HTTP 401 and one no longer matches its pinned SHA-256.
+  Those three have since been removed from the manifest (PR #3).
 - `available-models.txt`: the 210 benign-manifest entries that were scored.
 - `hayward-high-rescore-2026-11-06.txt` and `rescore_hayward_high.py`:
   Hayward re-scored at its default build gate (HIGH and above). The main run

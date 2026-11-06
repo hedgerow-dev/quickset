@@ -45,7 +45,7 @@ Quickset evaluates scanners across two distinct, complementary datasets:
 
 ## Tool Comparison
 
-Results from the run of 5 November 2026: 26 generated malicious cases and 222 benign files (210 real Hugging Face models, three of the 213 in the manifest no longer being downloadable, plus 12 generated benign cases). Raw per-file results, the run log and the environment are in [`evidence/2026-11-05-scanner-comparison/`](evidence/2026-11-05-scanner-comparison/).
+Results from the run of 5 November 2026: 26 generated malicious cases and 222 benign files (the 210 real Hugging Face models in the manifest, plus 12 generated benign cases). Raw per-file results, the run log and the environment are in [`evidence/2026-11-05-scanner-comparison/`](evidence/2026-11-05-scanner-comparison/).
 
 Every rate is over the files that scanner returned a verdict on, so denominators differ between scanners. False positives are reported at **both thresholds**: the strict one counts only the tier each tool's author calls actionable, and the second adds the tool's own unknown or warning tier. Reporting only the first hides most of the difference between tools.
 
