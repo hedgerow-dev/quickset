@@ -1,0 +1,31 @@
+name: Buckthorn
+
+# Checks every file uv.lock pins for code that runs at install, start-up or
+# import, before anything is installed. Same lockfile, same files, so it only
+# runs when the lockfile, the allowlist or this workflow changes.
+on:
+  push:
+    branches: [main]
+    paths: [uv.lock, buckthorn-allow.json, .github/workflows/buckthorn.yml]
+  pull_request:
+    paths: [uv.lock, buckthorn-allow.json, .github/workflows/buckthorn.yml]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write # for the SARIF upload
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: hedgerow-dev/buckthorn@646f42f001024821ebb802a976d216d790fd9d1b # v0.1.1
+        with:
+          lockfile: uv.lock
+          allowlist: buckthorn-allow.json
+      - uses: github/codeql-action/upload-sarif@1bd86f2fdb4b86187fa4059f16f31a3202acc9ea # v4.39.4
+        if: always()
+        with:
+          sarif_file: buckthorn.sarif

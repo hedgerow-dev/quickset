@@ -1,0 +1,25 @@
+{
+  "allow": [
+    {
+      "rule": "BKT-IMPORT-002",
+      "package": "numpy",
+      "version": "2.2.6",
+      "file": "numpy/testing/_private/utils.py",
+      "reason": "Reviewed 2026-11-23: numpy's own test file test_scalarmath.py calls check_support_sve(), which runs a process, when that test is imported; tests are not imported at run time."
+    },
+    {
+      "rule": "BKT-IMPORT-002",
+      "package": "numpy",
+      "version": "2.4.6",
+      "file": "numpy/testing/_private/utils.py",
+      "reason": "Reviewed 2026-11-23: numpy's own test file test_scalarmath.py calls check_support_sve(), which runs a process, when that test is imported; tests are not imported at run time."
+    },
+    {
+      "rule": "BKT-IMPORT-002",
+      "package": "numpy",
+      "version": "2.5.1",
+      "file": "numpy/testing/_private/utils.py",
+      "reason": "Reviewed 2026-11-23: numpy's own test file test_scalarmath.py calls check_support_sve(), which runs a process, when that test is imported; tests are not imported at run time."
+    }
+  ]
+}
